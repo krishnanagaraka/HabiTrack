@@ -1,0 +1,104 @@
+/* src/App.css */
+body {
+  background: #f3f4f6;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+}
+
+.habit-container {
+  background: #fff;
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 32px 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+h1 {
+  text-align: center;
+  color: #2563eb;
+  margin-bottom: 24px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+label {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+input, select {
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border 0.2s;
+}
+
+input:focus, select:focus {
+  border: 1.5px solid #2563eb;
+  outline: none;
+}
+
+button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.habit-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 32px;
+}
+
+.habit-table th, .habit-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.habit-table th {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+
+.action-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin: 0 2px;
+}
+
+.edit-btn {
+  background: #fbbf24;
+  color: #fff;
+  border: none;
+}
+
+.edit-btn:hover {
+  background: #f59e42;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+}
+
+.delete-btn:hover {
+  background: #dc2626;
+}

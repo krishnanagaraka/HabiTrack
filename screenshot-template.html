@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabiTrack Screenshot Templates</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .screenshot-container {
+            width: 360px;
+            height: 640px;
+            background: white;
+            border-radius: 20px;
+            margin: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: top;
+        }
+        
+        .status-bar {
+            height: 24px;
+            background: #2196f3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .app-bar {
+            height: 56px;
+            background: #2196f3;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .content {
+            padding: 20px;
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+        
+        .habit-item {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .habit-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .habit-progress {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: #4caf50;
+            width: 75%;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-top: 20px;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .calendar-day.completed {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .calendar-day.today {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .form-field {
+            margin-bottom: 16px;
+        }
+        
+        .form-field label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-field input, .form-field select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #2196f3;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+        }
+        
+        .screenshot-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HabiTrack Screenshot Templates</h1>
+        <p>Use these templates as a guide for taking actual app screenshots</p>
+        
+        <!-- Dashboard Screenshot -->
+        <div class="screenshot-container">
+            <div class="screenshot-title">1. Dashboard</div>
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            <div class="app-bar">
+                HabiTrack
+            </div>
+            <div class="content">
+                <div class="habit-item">
+                    <div class="habit-title">Morning Exercise</div>
+                    <div class="habit-progress">
+                        <div class="progress-bar"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">75% complete this week</div>
+                </div>
+                
+                <div class="habit-item">
+                    <div class="habit-title">Read Books</div>
+                    <div class="habit-progress">
+                        <div class="progress-bar" style="width: 90%;"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">90% complete this week</div>
+                </div>
+                
+                <div class="habit-item">
+                    <div class="habit-title">Drink Water</div>
+                    <div class="habit-progress">
+                        <div class="progress-bar" style="width: 100%;"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">100% complete this week</div>
+                </div>
+                
+                <div class="habit-item">
+                    <div class="habit-title">Meditation</div>
+                    <div class="habit-progress">
+                        <div class="progress-bar" style="width: 60%;"></div>
+                    </div>
+                    <div style="font-size: 12px; color: #666;">60% complete this week</div>
+                </div>
+            </div>
+            <div class="fab">+</div>
+        </div>
+        
+        <!-- Calendar Screenshot -->
+        <div class="screenshot-container">
+            <div class="screenshot-title">2. Calendar View</div>
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            <div class="app-bar">
+                Calendar
+            </div>
+            <div class="content">
+                <h3 style="margin: 0 0 20px 0; color: #333;">December 2024</h3>
+                <div class="calendar-grid">
+                    <div class="calendar-day">S</div>
+                    <div class="calendar-day">M</div>
+                    <div class="calendar-day">T</div>
+                    <div class="calendar-day">W</div>
+                    <div class="calendar-day">T</div>
+                    <div class="calendar-day">F</div>
+                    <div class="calendar-day">S</div>
+                    <div class="calendar-day"></div>
+                    <div class="calendar-day completed">1</div>
+                    <div class="calendar-day completed">2</div>
+                    <div class="calendar-day completed">3</div>
+                    <div class="calendar-day">4</div>
+                    <div class="calendar-day">5</div>
+                    <div class="calendar-day">6</div>
+                    <div class="calendar-day">7</div>
+                    <div class="calendar-day completed">8</div>
+                    <div class="calendar-day completed">9</div>
+                    <div class="calendar-day completed">10</div>
+                    <div class="calendar-day completed">11</div>
+                    <div class="calendar-day completed">12</div>
+                    <div class="calendar-day completed">13</div>
+                    <div class="calendar-day">14</div>
+                    <div class="calendar-day completed">15</div>
+                    <div class="calendar-day completed">16</div>
+                    <div class="calendar-day completed">17</div>
+                    <div class="calendar-day completed">18</div>
+                    <div class="calendar-day completed">19</div>
+                    <div class="calendar-day completed">20</div>
+                    <div class="calendar-day">21</div>
+                    <div class="calendar-day completed">22</div>
+                    <div class="calendar-day completed">23</div>
+                    <div class="calendar-day completed">24</div>
+                    <div class="calendar-day completed">25</div>
+                    <div class="calendar-day completed">26</div>
+                    <div class="calendar-day completed">27</div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day completed">29</div>
+                    <div class="calendar-day completed">30</div>
+                    <div class="calendar-day today">31</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Habit Screenshot -->
+        <div class="screenshot-container">
+            <div class="screenshot-title">3. Add Habit</div>
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            <div class="app-bar">
+                Add New Habit
+            </div>
+            <div class="content">
+                <div class="form-field">
+                    <label>Habit Title</label>
+                    <input type="text" placeholder="e.g., Morning Exercise" value="Learn Spanish">
+                </div>
+                
+                <div class="form-field">
+                    <label>Description</label>
+                    <input type="text" placeholder="Optional description" value="Practice Duolingo lessons daily">
+                </div>
+                
+                <div class="form-field">
+                    <label>Frequency</label>
+                    <select>
+                        <option>Daily</option>
+                        <option selected>Weekly</option>
+                        <option>Monthly</option>
+                    </select>
+                </div>
+                
+                <div class="form-field">
+                    <label>Duration (minutes)</label>
+                    <input type="number" placeholder="Optional" value="15">
+                </div>
+                
+                <div class="form-field">
+                    <label>Times per week</label>
+                    <input type="number" placeholder="How many times?" value="5">
+                </div>
+                
+                <button style="width: 100%; padding: 16px; background: #2196f3; color: white; border: none; border-radius: 8px; font-size: 16px; margin-top: 20px;">
+                    Create Habit
+                </button>
+            </div>
+        </div>
+        
+        <!-- Analytics Screenshot -->
+        <div class="screenshot-container">
+            <div class="screenshot-title">4. Analytics</div>
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            <div class="app-bar">
+                Analytics
+            </div>
+            <div class="content">
+                <h3 style="margin: 0 0 20px 0; color: #333;">This Week's Progress</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">78%</div>
+                        <div class="stat-label">Completion Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">Day Streak</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">12</div>
+                        <div class="stat-label">Habits Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">4.2</div>
+                        <div class="stat-label">Discipline Score</div>
+                    </div>
+                </div>
+                
+                <h4 style="margin: 30px 0 15px 0; color: #333;">Best Performing Habits</h4>
+                <div class="habit-item">
+                    <div class="habit-title">Drink Water</div>
+                    <div style="font-size: 14px; color: #4caf50;">100% completion rate</div>
+                </div>
+                
+                <div class="habit-item">
+                    <div class="habit-title">Read Books</div>
+                    <div style="font-size: 14px; color: #4caf50;">90% completion rate</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Screenshot -->
+        <div class="screenshot-container">
+            <div class="screenshot-title">5. Settings</div>
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            <div class="app-bar">
+                Settings
+            </div>
+            <div class="content">
+                <div style="margin-bottom: 30px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="width: 80px; height: 80px; background: #2196f3; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;">
+                            U
+                        </div>
+                        <div style="font-weight: bold; color: #333;">user@example.com</div>
+                    </div>
+                </div>
+                
+                <div style="background: #f5f5f5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">Account</div>
+                    <div style="color: #666; font-size: 14px;">Manage your account settings</div>
+                </div>
+                
+                <div style="background: #f5f5f5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">Notifications</div>
+                    <div style="color: #666; font-size: 14px;">Configure app notifications</div>
+                </div>
+                
+                <div style="background: #f5f5f5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">Data & Privacy</div>
+                    <div style="color: #666; font-size: 14px;">Manage your data and privacy</div>
+                </div>
+                
+                <div style="background: #f5f5f5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 8px;">Help & Support</div>
+                    <div style="color: #666; font-size: 14px;">Get help and contact support</div>
+                </div>
+                
+                <button style="width: 100%; padding: 16px; background: #f44336; color: white; border: none; border-radius: 8px; font-size: 16px; margin-top: 20px;">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3>Screenshot Guidelines:</h3>
+            <ul>
+                <li>Take screenshots on a real Android device or emulator</li>
+                <li>Use 16:9 aspect ratio (360x640 is good for phones)</li>
+                <li>Show actual app functionality, not mockups</li>
+                <li>Ensure text is readable and clear</li>
+                <li>Include 2-8 screenshots total</li>
+                <li>Save as PNG format</li>
+                <li>Name files: screenshot-1-dashboard.png, etc.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

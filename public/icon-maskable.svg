@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with safe zone for maskable icons -->
+  <rect width="512" height="512" rx="128" fill="#7C3AED"/>
+  
+  <!-- Safe zone: content should be within 40% of center -->
+  <g transform="translate(102.4, 102.4) scale(0.6)">
+    <!-- Trophy base -->
+    <rect x="208" y="384" width="96" height="32" rx="16" fill="white"/>
+    <!-- Trophy stem -->
+    <rect x="240" y="320" width="32" height="64" rx="16" fill="white"/>
+    <!-- Trophy cup -->
+    <path d="M160 192 Q256 80 352 192 Q352 304 256 304 Q160 304 160 192Z" fill="white"/>
+    <!-- Trophy handles -->
+    <path d="M160 208 Q96 256 160 272" stroke="white" stroke-width="24" fill="none"/>
+    <path d="M352 208 Q416 256 352 272" stroke="white" stroke-width="24" fill="none"/>
+    <!-- Tracker (calendar/checklist) as a small overlay badge in front of trophy -->
+    <rect x="320" y="352" width="128" height="96" rx="16" fill="white" stroke="#7C3AED" stroke-width="16"/>
+    <!-- Calendar rings -->
+    <rect x="344" y="376" width="16" height="16" rx="8" fill="#7C3AED"/>
+    <rect x="376" y="376" width="16" height="16" rx="8" fill="#7C3AED"/>
+    <rect x="408" y="376" width="16" height="16" rx="8" fill="#7C3AED"/>
+    <rect x="344" y="408" width="16" height="16" rx="8" fill="#7C3AED"/>
+    <rect x="376" y="408" width="16" height="16" rx="8" fill="#7C3AED"/>
+    <rect x="408" y="408" width="16" height="16" rx="8" fill="#7C3AED"/>
+  </g>
+</svg> 

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabiTrack Feature Graphic Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        .feature-graphic {
+            width: 1024px;
+            height: 500px;
+            margin: 20px auto;
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 50%, #1565c0 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 60px;
+            box-sizing: border-box;
+        }
+        
+        .feature-graphic::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="30" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="70" r="1.5" fill="rgba(255,255,255,0.1)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .left-content {
+            z-index: 2;
+            text-align: left;
+            color: white;
+            flex: 1;
+        }
+        
+        .app-name {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 0 0 20px 0;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 32px;
+            margin: 0 0 30px 0;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .features {
+            font-size: 20px;
+            margin: 0;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+        
+        .right-content {
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .calendar-mockup {
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(7, 1fr);
+            gap: 4px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .calendar-header {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .calendar-day {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .calendar-day.completed {
+            background: #4caf50;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+        }
+        
+        .calendar-day.today {
+            background: #ff9800;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4);
+        }
+        
+        .instructions {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HabiTrack Feature Graphic</h1>
+        <p>1024x500 px - Ready for Google Play Store</p>
+        
+        <div class="feature-graphic">
+            <div class="left-content">
+                <h1 class="app-name">HabiTrack</h1>
+                <p class="tagline">Build Better Habits</p>
+                <ul class="features">
+                    <li>📅 Visual Calendar Tracking</li>
+                    <li>📊 Progress Analytics</li>
+                    <li>🔥 Streak Monitoring</li>
+                    <li>🎯 Goal Achievement</li>
+                </ul>
+            </div>
+            
+            <div class="right-content">
+                <div class="calendar-mockup">
+                    <div class="calendar-header">December 2024</div>
+                    <div class="calendar-day">S</div>
+                    <div class="calendar-day">M</div>
+                    <div class="calendar-day">T</div>
+                    <div class="calendar-day">W</div>
+                    <div class="calendar-day">T</div>
+                    <div class="calendar-day">F</div>
+                    <div class="calendar-day">S</div>
+                    <div class="calendar-day"></div>
+                    <div class="calendar-day completed">1</div>
+                    <div class="calendar-day completed">2</div>
+                    <div class="calendar-day completed">3</div>
+                    <div class="calendar-day">4</div>
+                    <div class="calendar-day">5</div>
+                    <div class="calendar-day">6</div>
+                    <div class="calendar-day">7</div>
+                    <div class="calendar-day completed">8</div>
+                    <div class="calendar-day completed">9</div>
+                    <div class="calendar-day completed">10</div>
+                    <div class="calendar-day completed">11</div>
+                    <div class="calendar-day completed">12</div>
+                    <div class="calendar-day completed">13</div>
+                    <div class="calendar-day">14</div>
+                    <div class="calendar-day completed">15</div>
+                    <div class="calendar-day completed">16</div>
+                    <div class="calendar-day completed">17</div>
+                    <div class="calendar-day completed">18</div>
+                    <div class="calendar-day completed">19</div>
+                    <div class="calendar-day completed">20</div>
+                    <div class="calendar-day">21</div>
+                    <div class="calendar-day completed">22</div>
+                    <div class="calendar-day completed">23</div>
+                    <div class="calendar-day completed">24</div>
+                    <div class="calendar-day completed">25</div>
+                    <div class="calendar-day completed">26</div>
+                    <div class="calendar-day completed">27</div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day completed">29</div>
+                    <div class="calendar-day completed">30</div>
+                    <div class="calendar-day today">31</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Save as PNG:</h3>
+            <ol>
+                <li>Take a screenshot of the feature graphic above</li>
+                <li>Crop to exactly 1024x500 pixels</li>
+                <li>Save as "feature-graphic-1024x500.png"</li>
+                <li>Use for Google Play Store upload</li>
+            </ol>
+            
+            <h3>Design Features:</h3>
+            <ul>
+                <li>✅ 1024x500 pixels (Google Play requirement)</li>
+                <li>✅ Blue gradient background (matches app theme)</li>
+                <li>✅ App name prominently displayed</li>
+                <li>✅ Key features listed with icons</li>
+                <li>✅ Calendar mockup showing functionality</li>
+                <li>✅ Professional, modern design</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

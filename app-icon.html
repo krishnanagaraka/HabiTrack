@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabiTrack App Icon Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        .icon-container {
+            width: 512px;
+            height: 512px;
+            margin: 20px auto;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 32px rgba(33, 150, 243, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-container::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            right: 10%;
+            bottom: 10%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-radius: 50%;
+        }
+        
+        .checkmark {
+            width: 200px;
+            height: 200px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .checkmark::before {
+            content: '';
+            position: absolute;
+            width: 60px;
+            height: 120px;
+            border: 12px solid white;
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg);
+            top: 20px;
+            left: 70px;
+        }
+        
+        .calendar-dots {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+        
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: absolute;
+        }
+        
+        .dot:nth-child(1) { top: -80px; left: -60px; }
+        .dot:nth-child(2) { top: -80px; left: -20px; }
+        .dot:nth-child(3) { top: -80px; left: 20px; }
+        .dot:nth-child(4) { top: -80px; left: 60px; }
+        .dot:nth-child(5) { top: -40px; left: -60px; }
+        .dot:nth-child(6) { top: -40px; left: -20px; }
+        .dot:nth-child(7) { top: -40px; left: 20px; }
+        .dot:nth-child(8) { top: -40px; left: 60px; }
+        .dot:nth-child(9) { top: 0px; left: -60px; }
+        .dot:nth-child(10) { top: 0px; left: -20px; }
+        .dot:nth-child(11) { top: 0px; left: 20px; }
+        .dot:nth-child(12) { top: 0px; left: 60px; }
+        .dot:nth-child(13) { top: 40px; left: -60px; }
+        .dot:nth-child(14) { top: 40px; left: -20px; }
+        .dot:nth-child(15) { top: 40px; left: 20px; }
+        .dot:nth-child(16) { top: 40px; left: 60px; }
+        .dot:nth-child(17) { top: 80px; left: -60px; }
+        .dot:nth-child(18) { top: 80px; left: -20px; }
+        .dot:nth-child(19) { top: 80px; left: 20px; }
+        .dot:nth-child(20) { top: 80px; left: 60px; }
+        
+        .instructions {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .download-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        
+        .download-btn:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HabiTrack App Icon</h1>
+        <p>512x512 px - Ready for Google Play Store</p>
+        
+        <div class="icon-container">
+            <div class="calendar-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <div class="checkmark"></div>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Save as PNG:</h3>
+            <ol>
+                <li>Right-click on the icon above</li>
+                <li>Select "Save image as..." or "Copy image"</li>
+                <li>Save as "app-icon-512.png"</li>
+                <li>Use for Google Play Store upload</li>
+            </ol>
+            
+            <h3>Alternative Method:</h3>
+            <ol>
+                <li>Take a screenshot of the icon</li>
+                <li>Crop to exactly 512x512 pixels</li>
+                <li>Save as PNG format</li>
+            </ol>
+            
+            <h3>Design Features:</h3>
+            <ul>
+                <li>✅ 512x512 pixels (Google Play requirement)</li>
+                <li>✅ Blue gradient background (matches app theme)</li>
+                <li>✅ White checkmark (represents habit completion)</li>
+                <li>✅ Calendar dots pattern (represents daily tracking)</li>
+                <li>✅ Clean, modern design</li>
+                <li>✅ Works well at small sizes</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html> 

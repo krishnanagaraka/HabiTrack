@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="16" fill="#7C3AED"/>
+  <!-- Trophy base -->
+  <rect x="26" y="48" width="12" height="4" rx="2" fill="white"/>
+  <!-- Trophy stem -->
+  <rect x="30" y="40" width="4" height="8" rx="2" fill="white"/>
+  <!-- Trophy cup -->
+  <path d="M20 24 Q32 10 44 24 Q44 38 32 38 Q20 38 20 24Z" fill="white"/>
+  <!-- Trophy handles -->
+  <path d="M20 26 Q12 32 20 34" stroke="white" stroke-width="3" fill="none"/>
+  <path d="M44 26 Q52 32 44 34" stroke="white" stroke-width="3" fill="none"/>
+  <!-- Tracker (calendar/checklist) as a small overlay badge in front of trophy -->
+  <rect x="40" y="44" width="16" height="12" rx="2" fill="white" stroke="#7C3AED" stroke-width="2"/>
+  <!-- Calendar rings -->
+  <rect x="43" y="47" width="2" height="2" rx="1" fill="#7C3AED"/>
+  <rect x="47" y="47" width="2" height="2" rx="1" fill="#7C3AED"/>
+  <rect x="51" y="47" width="2" height="2" rx="1" fill="#7C3AED"/>
+  <rect x="43" y="51" width="2" height="2" rx="1" fill="#7C3AED"/>
+  <rect x="47" y="51" width="2" height="2" rx="1" fill="#7C3AED"/>
+  <rect x="51" y="51" width="2" height="2" rx="1" fill="#7C3AED"/>
+</svg>
