@@ -51,7 +51,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Calendar from './Calendar';
 import HabitCalendar from './HabitCalendar';
 import { useTheme } from './ThemeContext';
-import { generateTestData, clearTestData, generateMinimalTestData } from '../test-data-generator';
+// Test data functions moved inline
 import notificationService from './notificationService';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -1032,36 +1032,7 @@ function App() {
         </Card>
       </Box>
 
-      {/* Calendar Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-          Habit Calendar
-        </Typography>
-        <Box sx={{ 
-          width: '100%', 
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}>
-          <Box sx={{ 
-            width: '100%', 
-            maxWidth: '100%',
-            mx: 'auto'
-          }}>
-            <Card sx={{
-              background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
-              color: 'white',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              borderRadius: 2,
-              overflow: 'hidden'
-            }}>
-              <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
-                <Calendar completions={completions} habits={habits} />
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
-      </Box>
+
 
     </Box>
   );
@@ -1148,7 +1119,7 @@ function App() {
           >
             <Tab label="Dashboard" />
             <Tab label={habits.length > 0 ? `Habits (${habits.length})` : "Habits"} />
-            <Tab label="Activity Log" />
+            <Tab label="Log" />
           </Tabs>
         </Box>
 
@@ -1321,8 +1292,39 @@ function App() {
               flexDirection: 'column',
               alignItems: 'center'
             }}>
+              {/* Calendar Section at the top */}
+              <Box sx={{ mb: 4, width: '100%' }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+                  Habit Calendar
+                </Typography>
+                <Box sx={{ 
+                  width: '100%', 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center'
+                }}>
+                  <Box sx={{ 
+                    width: '100%', 
+                    maxWidth: '100%',
+                    mx: 'auto'
+                  }}>
+                    <Card sx={{
+                      background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+                      color: 'white',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      borderRadius: 2,
+                      overflow: 'hidden'
+                    }}>
+                      <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
+                        <Calendar completions={completions} habits={habits} />
+                      </CardContent>
+                    </Card>
+                  </Box>
+                </Box>
+              </Box>
+
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, textAlign: 'center' }}>
-                Activity Log
+                Log
               </Typography>
               <Box sx={{ 
                 width: '100%', 
