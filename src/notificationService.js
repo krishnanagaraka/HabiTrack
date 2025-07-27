@@ -1,7 +1,7 @@
 // Notification service for HabitTracker
 // Handles both local and server notifications
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
 class NotificationService {
   constructor() {
@@ -14,7 +14,7 @@ class NotificationService {
     try {
       const response = await fetch(`${SERVER_URL}/health`);
       this.isServerAvailable = response.ok;
-    } catch (error) {
+    } catch {
       console.log('Server not available, using local notifications only');
       this.isServerAvailable = false;
     }
@@ -79,7 +79,7 @@ class NotificationService {
         });
         console.log('DEBUG: Daily notification scheduled successfully');
       } else if (habit.frequency === 'weekly' && habit.weeklyDays.length > 0) {
-        const notifications = habit.weeklyDays.map((dayIndex, idx) => {
+        const notifications = habit.weeklyDays.map((dayIndex) => {
           const hour = parseInt(habit.startTime.split(':')[0]);
           const minute = parseInt(habit.startTime.split(':')[1]);
           const id = this.hashId(`${habit.title}-weekly-${dayIndex}`); // Ensure this is a number

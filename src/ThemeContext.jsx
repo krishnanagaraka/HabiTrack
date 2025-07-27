@@ -1,17 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createTheme } from '@mui/material/styles';
+import { ThemeContext } from './ThemeContext.js';
 
 // Add this import for Capacitor bridge
 let SystemBar;
 try {
   // Only import if running in a Capacitor environment
   SystemBar = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SystemBar;
-} catch (e) {}
-
-const ThemeContext = createContext();
-
-export function useTheme() {
-  return useContext(ThemeContext);
+} catch {
+  // Ignore error if Capacitor is not available
 }
 
 export function ThemeProvider({ children }) {

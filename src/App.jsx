@@ -47,13 +47,16 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import CloseIcon from '@mui/icons-material/Close';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+
 import Calendar from './Calendar';
 import HabitCalendar from './HabitCalendar';
-import { useTheme } from './ThemeContext';
+import { useTheme } from './useTheme';
 // Test data functions moved inline
 import notificationService from './notificationService';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+
 
 function App() {
   // All hooks must be called at the top, before any conditional returns
@@ -78,14 +81,22 @@ function App() {
   const [open, setOpen] = useState(false);
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [habitFormStep, setHabitFormStep] = useState(1); // 1 = tracking type, 2 = habit details
-  const [logEntry, setLogEntry] = useState({
-    habitIndex: 0,
-    date: new Date().toISOString().split('T')[0],
-    feeling: 3,
-    duration: '', // Optional duration
-    progress: '' // For progress tracking
+  const [logEntry, setLogEntry] = useState(() => {
+    // Get today's date in local timezone
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    
+    return {
+      habitIndex: 0,
+      date: todayString,
+      feeling: 3,
+      progress: '' // For progress tracking
+    };
   });
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Removed unused currentDate state
   const [completions, setCompletions] = useState(() => {
     const saved = localStorage.getItem('completions');
     return saved ? JSON.parse(saved) : {};
@@ -95,8 +106,7 @@ function App() {
     return saved ? JSON.parse(saved) : {};
   });
   const [currentTab, setCurrentTab] = useState(0);
-  const [showDevPanel, setShowDevPanel] = useState(false);
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = import.meta.env.DEV;
   const [bestStreakInfoOpen, setBestStreakInfoOpen] = useState(false);
   const [disciplineInfoOpen, setDisciplineInfoOpen] = useState(false);
   const [thisWeekInfoOpen, setThisWeekInfoOpen] = useState(false);
@@ -105,6 +115,26 @@ function App() {
   const [editLog, setEditLog] = useState(null); // Track if editing a log
   const [logError, setLogError] = useState('');
   const [habitError, setHabitError] = useState('');
+  const [selectedCalendarIndex, setSelectedCalendarIndex] = useState(0); // 0 = All Habits, 1+ = individual habits
+  const [calendarLogModalOpen, setCalendarLogModalOpen] = useState(false);
+  const [calendarLogEntry, setCalendarLogEntry] = useState(() => {
+    // Get today's date in local timezone
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    
+    return {
+      habitIndex: 0,
+      date: todayString,
+      originalDate: todayString,
+      completed: true,
+      feeling: 3,
+      notes: '',
+      progress: ''
+    };
+  });
 
   // Add this helper function at the top-level of App
   const isFutureDate = (dateStr) => {
@@ -113,6 +143,15 @@ function App() {
     const d = new Date(dateStr);
     d.setHours(0,0,0,0);
     return d > today;
+  };
+
+  // Helper function to get today's date in local timezone
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Notification scheduling functions
@@ -182,9 +221,15 @@ function App() {
       const weeklyStats = habits.map((habit, idx) => {
         const weekCompletions = Object.keys(completions).filter(date => {
           const completionDate = new Date(date);
-          return completionDate >= weekStart && 
-                 completionDate <= today && 
-                 completions[date][idx];
+          if (completionDate < weekStart || completionDate > today) return false;
+          
+          // Handle both old array format and new object format
+          if (Array.isArray(completions[date])) {
+            return completions[date][idx];
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            return completions[date][idx] && completions[date][idx].completed;
+          }
+          return false;
         }).length;
         
         let totalDays;
@@ -248,17 +293,22 @@ function App() {
     weekStart.setDate(today.getDate() - daysToSubtract);
     weekStart.setHours(0, 0, 0, 0);
     
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    // Removed unused monthStart variable
     
     const weeklyStats = habits.map((habit, idx) => {
       if (habit.trackingType === "progress") {
         // For progress-type habits, calculate based on actual progress values
         const weekProgressEntries = Object.keys(completions).filter(date => {
           const completionDate = new Date(date);
-          return completionDate >= weekStart && 
-                 completionDate <= today && 
-                 completions[date][idx] &&
-                 completions[date][idx].progress;
+          if (completionDate < weekStart || completionDate > today) return false;
+          
+          // Handle both old array format and new object format
+          if (Array.isArray(completions[date])) {
+            return completions[date][idx] && completions[date][idx].progress;
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            return completions[date][idx] && completions[date][idx].completed && completions[date][idx].progress;
+          }
+          return false;
         });
         
         // Sum up progress values, but cap each day at the target
@@ -267,7 +317,12 @@ function App() {
         let completionDays = 0;
         
         weekProgressEntries.forEach(date => {
-          const progress = parseFloat(completions[date][idx].progress) || 0;
+          let progress = 0;
+          if (Array.isArray(completions[date])) {
+            progress = parseFloat(completions[date][idx]?.progress) || 0;
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            progress = parseFloat(completions[date][idx]?.progress) || 0;
+          }
           // Cap progress at target per day
           const cappedProgress = Math.min(progress, target);
           totalProgress += cappedProgress;
@@ -297,9 +352,15 @@ function App() {
         // For completion-type habits, use the existing logic
         const weekCompletions = Object.keys(completions).filter(date => {
           const completionDate = new Date(date);
-          return completionDate >= weekStart && 
-                 completionDate <= today && 
-                 completions[date][idx];
+          if (completionDate < weekStart || completionDate > today) return false;
+          
+          // Handle both old array format and new object format
+          if (Array.isArray(completions[date])) {
+            return completions[date][idx];
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            return completions[date][idx] && completions[date][idx].completed;
+          }
+          return false;
         }).length;
         
         // Calculate total days based on habit frequency
@@ -332,10 +393,15 @@ function App() {
         // For progress-type habits, calculate based on actual progress values
         const monthProgressEntries = Object.keys(completions).filter(date => {
           const completionDate = new Date(date);
-          return completionDate >= thirtyDaysAgo && 
-                 completionDate <= today && 
-                 completions[date][idx] &&
-                 completions[date][idx].progress;
+          if (completionDate < thirtyDaysAgo || completionDate > today) return false;
+          
+          // Handle both old array format and new object format
+          if (Array.isArray(completions[date])) {
+            return completions[date][idx] && completions[date][idx].progress;
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            return completions[date][idx] && completions[date][idx].completed && completions[date][idx].progress;
+          }
+          return false;
         });
         
         // Sum up progress values, but cap each day at the target
@@ -344,7 +410,12 @@ function App() {
         let completionDays = 0;
         
         monthProgressEntries.forEach(date => {
-          const progress = parseFloat(completions[date][idx].progress) || 0;
+          let progress = 0;
+          if (Array.isArray(completions[date])) {
+            progress = parseFloat(completions[date][idx]?.progress) || 0;
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            progress = parseFloat(completions[date][idx]?.progress) || 0;
+          }
           // Cap progress at target per day
           const cappedProgress = Math.min(progress, target);
           totalProgress += cappedProgress;
@@ -375,9 +446,15 @@ function App() {
         // For completion-type habits, use the existing logic
         const last30DaysCompletions = Object.keys(completions).filter(date => {
           const completionDate = new Date(date);
-          return completionDate >= thirtyDaysAgo && 
-                 completionDate <= today && 
-                 completions[date][idx];
+          if (completionDate < thirtyDaysAgo || completionDate > today) return false;
+          
+          // Handle both old array format and new object format
+          if (Array.isArray(completions[date])) {
+            return completions[date][idx];
+          } else if (completions[date] && typeof completions[date] === 'object') {
+            return completions[date][idx] && completions[date][idx].completed;
+          }
+          return false;
         }).length;
         
         // Calculate total days based on habit frequency for last 30 days
@@ -472,7 +549,15 @@ function App() {
         let currentDate = new Date(today);
         while (currentDate >= thirtyDaysAgo) {
           const dateStr = currentDate.toISOString().split('T')[0];
-          if (completions[dateStr] && completions[dateStr][idx]) {
+          let isCompleted = false;
+          
+          if (Array.isArray(completions[dateStr])) {
+            isCompleted = completions[dateStr][idx];
+          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+          }
+          
+          if (isCompleted) {
             streak++;
             currentDate.setDate(currentDate.getDate() - 1);
           } else {
@@ -484,7 +569,15 @@ function App() {
         let currentDate = new Date(today);
         while (currentDate >= thirtyDaysAgo) {
           const dateStr = currentDate.toISOString().split('T')[0];
-          if (completions[dateStr] && completions[dateStr][idx]) {
+          let isCompleted = false;
+          
+          if (Array.isArray(completions[dateStr])) {
+            isCompleted = completions[dateStr][idx];
+          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+          }
+          
+          if (isCompleted) {
             streak++;
           }
           currentDate.setDate(currentDate.getDate() - 1);
@@ -555,52 +648,11 @@ function App() {
   console.log('Best streak index:', bestStreakIndex);
   console.log('Best streak habit:', bestStreakHabit);
   console.log('=== END STREAK DEBUG ===');
-  const worstStreakValue = streaks.length > 0 ? Math.min(...streaks) : 0;
-  const worstStreakIndex = streaks.findIndex(s => s === worstStreakValue);
-  const worstStreakHabit = habits[worstStreakIndex]?.title || '-';
+  // Removed unused worstStreakValue variable
+  // Removed unused worstStreakIndex variable
+  // Removed unused worstStreakHabit variable
 
-  // Calendar helpers
-  const getDaysInMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  const isToday = (date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isCompleted = (date, habitIndex) => {
-    const dateStr = formatDate(date);
-    return completions[dateStr] && completions[dateStr][habitIndex];
-  };
-
-  const toggleCompletion = (date, habitIndex) => {
-    const dateStr = formatDate(date);
-    setCompletions(prev => {
-      const newCompletions = { ...prev };
-      if (!newCompletions[dateStr]) {
-        newCompletions[dateStr] = new Array(habits.length).fill(false);
-      }
-      newCompletions[dateStr][habitIndex] = !newCompletions[dateStr][habitIndex];
-      return newCompletions;
-    });
-  };
-
-  const navigateMonth = (direction) => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + direction);
-      return newDate;
-    });
-  };
+  // Removed unused calendar helper functions
 
   // Handlers
   const handleOpen = () => {
@@ -725,13 +777,34 @@ function App() {
       
       setHabits(prev => prev.filter((_, i) => i !== index));
       setCompletions(prev => {
-        const newCompletions = {};
-        Object.keys(prev).forEach(date => {
-          const newCompletionsForDate = prev[date].filter((_, i) => i !== index);
-          if (newCompletionsForDate.length > 0) {
-            newCompletions[date] = newCompletionsForDate;
+        const newCompletions = { ...prev };
+        
+        Object.keys(newCompletions).forEach(date => {
+          // Skip special fields
+          if (date === '_durations' || date === '_feelings') return;
+          
+          const dayLogs = newCompletions[date];
+          
+          if (Array.isArray(dayLogs)) {
+            // Old format: array of booleans
+            const filteredArray = dayLogs.filter((_, i) => i !== index);
+            if (filteredArray.length > 0) {
+              newCompletions[date] = filteredArray;
+            } else {
+              delete newCompletions[date];
+            }
+          } else if (dayLogs && typeof dayLogs === 'object') {
+            // New format: object with habit indices as keys
+            if (dayLogs[index]) {
+              delete dayLogs[index];
+              // If no more entries for this date, remove the date entirely
+              if (Object.keys(dayLogs).length === 0) {
+                delete newCompletions[date];
+              }
+            }
           }
         });
+        
         return newCompletions;
       });
     }
@@ -739,23 +812,64 @@ function App() {
 
   // Helper to get all logs as an array (last 30 days only)
   const getLogs = () => {
+    // Safety check - if no habits, return empty array
+    if (!habits || habits.length === 0) {
+      return [];
+    }
+    
     const logs = [];
     const now = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(now.getDate() - 30);
-    Object.entries(completions).forEach(([date, arr]) => {
-      if (date === '_durations' || date === '_feelings') return;
+    
+    Object.entries(completions).forEach(([date, dayLogs]) => {
+      // Skip special fields and invalid dates
+      if (date === '_durations' || date === '_feelings' || !dayLogs || typeof dayLogs !== 'object') {
+        return;
+      }
+      
       const logDate = new Date(date);
-      if (logDate < thirtyDaysAgo || logDate > now) return;
-      arr.forEach((completed, idx) => {
-        if (completed && habits[idx]) {
-          const duration = completions._durations && completions._durations[date] && completions._durations[date][idx];
-          const feeling = completions._feelings && completions._feelings[date] && completions._feelings[date][idx];
-          const progress = completed.progress;
-          logs.push({ date, habit: habits[idx].title, habitIndex: idx, duration, feeling, progress });
-        }
-      });
+      if (logDate < thirtyDaysAgo || logDate > now) {
+        return;
+      }
+      
+      // Handle both old array format and new object format
+      if (Array.isArray(dayLogs)) {
+        // Old format: array of booleans
+        dayLogs.forEach((completed, idx) => {
+          if (completed && habits[idx]) {
+            const duration = completions._durations && completions._durations[date] && completions._durations[date][idx];
+            const feeling = completions._feelings && completions._feelings[date] && completions._feelings[date][idx];
+            logs.push({ 
+              date, 
+              habit: habits[idx].title, 
+              habitIndex: idx, 
+              duration, 
+              feeling, 
+              progress: ''
+            });
+          }
+        });
+      } else {
+        // New format: object with habit indices as keys
+        Object.entries(dayLogs).forEach(([habitIndex, logData]) => {
+          const idx = parseInt(habitIndex);
+          
+          if (logData && logData.completed && idx >= 0 && idx < habits.length && habits[idx]) {
+            logs.push({ 
+              date, 
+              habit: habits[idx].title, 
+              habitIndex: idx, 
+              duration: logData.duration || '',
+              feeling: logData.feeling || 3,
+              progress: logData.progress || '',
+              notes: logData.notes || ''
+            });
+          }
+        });
+      }
     });
+    
     // Sort logs by date descending
     logs.sort((a, b) => b.date.localeCompare(a.date));
     return logs;
@@ -786,26 +900,15 @@ function App() {
     }
   };
 
-  const handleDuplicateLog = (log) => {
-    setEditLog(null); // Not editing, creating new
-    setLogEntry({
-      habitIndex: log.habitIndex,
-      date: new Date().toISOString().split('T')[0], // today
-      feeling: log.feeling || 3,
-      duration: log.duration || '',
-      progress: log.progress || ''
-    });
-    setLogModalOpen(true);
-  };
+
 
   const handleLogModalOpen = () => {
     setLogModalOpen(true);
     setEditLog(null);
     setLogEntry({
       habitIndex: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayString(),
       feeling: 3,
-      duration: '',
       progress: ''
     });
   };
@@ -815,9 +918,8 @@ function App() {
     setEditLog(null);
     setLogEntry({
       habitIndex: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayString(),
       feeling: 3,
-      duration: '',
       progress: ''
     });
     setLogError('');
@@ -876,7 +978,6 @@ function App() {
       newCompletions[logEntry.date][logEntry.habitIndex] = {
         completed: true,
         feeling: logEntry.feeling,
-        duration: logEntry.duration,
         progress: logEntry.progress,
         notes: logEntry.notes || ''
       };
@@ -895,7 +996,6 @@ function App() {
       newCompletions[date][habitIndex] = {
         completed: true,
         feeling: logEntry.feeling,
-        duration: logEntry.duration,
         progress: logEntry.progress,
         notes: logEntry.notes || ''
       };
@@ -906,6 +1006,94 @@ function App() {
   const handleOnboardingClose = () => {
     localStorage.setItem('onboardingComplete', 'true');
     setOnboardingOpen(false);
+  };
+
+  // Calendar carousel functions
+  const handleCalendarPrev = () => {
+    setSelectedCalendarIndex(prev => {
+      if (prev === 0) return habits.length; // Wrap to last habit
+      return prev - 1;
+    });
+  };
+
+  const handleCalendarNext = () => {
+    setSelectedCalendarIndex(prev => {
+      if (prev === habits.length) return 0; // Wrap to All Habits
+      return prev + 1;
+    });
+  };
+
+  const getCalendarTitle = () => {
+    if (selectedCalendarIndex === 0) return "All Habits";
+    const habit = habits[selectedCalendarIndex - 1];
+    return habit ? habit.title : "All Habits";
+  };
+
+  // Calendar date click handler
+  const handleCalendarDateClick = (dateStr, habitIndex, existingEntry) => {
+    if (selectedCalendarIndex === 0) return; // Don't allow clicks on "All Habits" calendar
+    
+    setCalendarLogEntry({
+      habitIndex: habitIndex,
+      date: dateStr,
+      originalDate: dateStr, // Store original date for editing
+      completed: existingEntry?.completed || true,
+      feeling: existingEntry?.feeling || 3,
+      duration: existingEntry?.duration || '',
+      notes: existingEntry?.notes || '',
+      progress: existingEntry?.progress || ''
+    });
+    setCalendarLogModalOpen(true);
+  };
+
+  // Handle calendar log submission
+  const handleCalendarLogSubmit = () => {
+    const { habitIndex, date, completed, feeling, duration, notes, progress } = calendarLogEntry;
+    
+    // Get the original date from when the modal was opened
+    const originalDate = calendarLogEntry.originalDate || date;
+    
+    // Update completions - remove from old date if different, add to new date
+    setCompletions(prev => {
+      const newCompletions = { ...prev };
+      
+      // If date changed, remove from original date
+      if (originalDate !== date && newCompletions[originalDate]) {
+        const updatedOriginalDate = { ...newCompletions[originalDate] };
+        delete updatedOriginalDate[habitIndex];
+        
+        // If no more entries for this date, remove the date entirely
+        if (Object.keys(updatedOriginalDate).length === 0) {
+          delete newCompletions[originalDate];
+        } else {
+          newCompletions[originalDate] = updatedOriginalDate;
+        }
+      }
+      
+      // Add to new date
+      newCompletions[date] = {
+        ...newCompletions[date],
+        [habitIndex]: {
+          completed,
+          feeling,
+          duration,
+          notes,
+          progress
+        }
+      };
+      
+      return newCompletions;
+    });
+
+    setCalendarLogModalOpen(false);
+  };
+
+  // Handle calendar log change
+  const handleCalendarLogChange = (field, value) => {
+    setCalendarLogEntry(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const renderDashboard = () => (
@@ -1142,9 +1330,7 @@ function App() {
               flexDirection: 'column',
               alignItems: 'center'
             }}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, textAlign: 'center' }}>
-                Your Habits
-              </Typography>
+
               {habits.length > 0 ? (
                 <Box sx={{ 
                   width: '100%', 
@@ -1292,17 +1478,48 @@ function App() {
               flexDirection: 'column',
               alignItems: 'center'
             }}>
-              {/* Calendar Section at the top */}
+              {/* Calendar Carousel Section at the top */}
               <Box sx={{ mb: 4, width: '100%' }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Habit Calendar
-                </Typography>
                 <Box sx={{ 
                   width: '100%', 
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center'
                 }}>
+                  {/* Calendar Navigation */}
+                  <Box sx={{ 
+                    width: '100%', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    mb: 2,
+                    px: 2
+                  }}>
+                    <IconButton 
+                      onClick={handleCalendarPrev}
+                      sx={{ 
+                        color: 'primary.main',
+                        '&:hover': { backgroundColor: 'action.hover' }
+                      }}
+                    >
+                      <ArrowBackIosNewIcon />
+                    </IconButton>
+                    
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
+                      {getCalendarTitle()}
+                    </Typography>
+                    
+                    <IconButton 
+                      onClick={handleCalendarNext}
+                      sx={{ 
+                        color: 'primary.main',
+                        '&:hover': { backgroundColor: 'action.hover' }
+                      }}
+                    >
+                      <ArrowForwardIosIcon />
+                    </IconButton>
+                  </Box>
+
                   <Box sx={{ 
                     width: '100%', 
                     maxWidth: '100%',
@@ -1316,7 +1533,17 @@ function App() {
                       overflow: 'hidden'
                     }}>
                       <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
-                        <Calendar completions={completions} habits={habits} />
+                        {selectedCalendarIndex === 0 ? (
+                          <Calendar completions={completions} habits={habits} />
+                        ) : (
+                          <HabitCalendar 
+                            habit={habits[selectedCalendarIndex - 1]}
+                            habitIndex={selectedCalendarIndex - 1}
+                            completions={completions}
+                            onLogEntry={handleHabitCalendarLogEntry}
+                            onDateClick={handleCalendarDateClick}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   </Box>
@@ -1324,7 +1551,7 @@ function App() {
               </Box>
 
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, textAlign: 'center' }}>
-                Log
+                Habit Logs
               </Typography>
               <Box sx={{ 
                 width: '100%', 
@@ -1348,19 +1575,30 @@ function App() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {getLogs().length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
-                            <Typography variant="body1" color="text.secondary">
-                              {habits.length === 0
-                                ? 'Create your habit and then log them to see logs here'
-                                : 'Add your first log'}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        <>
-                          {getLogs().map((log, idx) => {
+                      {(() => {
+                        try {
+                          const logs = getLogs();
+                          
+                          if (logs.length === 0) {
+                            return (
+                              <TableRow>
+                                <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                                  <Typography variant="body1" color="text.secondary">
+                                    {habits.length === 0
+                                      ? 'Create your habit and then log them to see logs here'
+                                      : 'Add your first log'}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+                          
+                          // Limit to first 100 logs for performance
+                          const displayLogs = logs.slice(0, 100);
+                          
+                          return (
+                            <>
+                              {displayLogs.map((log, index) => {
                             const habit = habits[log.habitIndex];
                             return (
                               <TableRow 
@@ -1434,18 +1672,7 @@ function App() {
                                         <EditIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
                                       </IconButton>
                                     </Tooltip>
-                                    <Tooltip title="Duplicate" placement="top">
-                                      <IconButton 
-                                        size="small" 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDuplicateLog(log);
-                                        }}
-                                        sx={{ p: { xs: 0.25, sm: 0.5 } }}
-                                      >
-                                        <ContentCopyIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
-                                      </IconButton>
-                                    </Tooltip>
+
                                     <Tooltip title="Delete" placement="top">
                                       <IconButton 
                                         size="small" 
@@ -1468,7 +1695,20 @@ function App() {
                             <TableCell colSpan={3} sx={{ height: { xs: 70, sm: 80, md: 80 }, border: 0, p: 0, background: 'transparent' }} />
                           </TableRow>
                         </>
-                      )}
+                      );
+                    } catch (error) {
+                      console.error('Error rendering logs:', error);
+                      return (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                            <Typography variant="body1" color="error">
+                              Error loading logs. Please try refreshing the app.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                  })()}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1955,7 +2195,7 @@ function App() {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ 
-                  max: new Date().toISOString().split('T')[0],
+                  max: getTodayString(),
                   style: { 
                     paddingRight: '12px',
                     textAlign: 'left'
@@ -1972,7 +2212,7 @@ function App() {
               {logError && (
                 <Typography color="error" variant="body2" sx={{ mt: 1 }}>{logError}</Typography>
               )}
-              {habits[logEntry.habitIndex]?.trackingType === "progress" ? (
+              {habits[logEntry.habitIndex]?.trackingType === "progress" && (
                 <TextField
                   label={`Progress (${habits[logEntry.habitIndex]?.units || 'units'})`}
                   value={logEntry.progress}
@@ -1981,14 +2221,6 @@ function App() {
                   placeholder={`e.g. ${habits[logEntry.habitIndex]?.target || '5'}`}
                   type="number"
                   required
-                />
-              ) : (
-                <TextField
-                  label="Duration (optional)"
-                  value={logEntry.duration}
-                  onChange={e => handleLogChange('duration', e.target.value)}
-                  fullWidth
-                  placeholder="e.g. 30 min"
                 />
               )}
               <Box>
@@ -2226,6 +2458,106 @@ function App() {
             <Button onClick={() => setLast30DaysInfoOpen(false)} color="primary">Close</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Calendar Log Modal */}
+        <Dialog open={calendarLogModalOpen} onClose={() => setCalendarLogModalOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 'bold' }}>
+            {habits[calendarLogEntry.habitIndex] ? `Log ${habits[calendarLogEntry.habitIndex].title}` : 'Log Habit'}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+              <TextField
+                label="Date"
+                type="date"
+                value={calendarLogEntry.date}
+                onChange={e => handleCalendarLogChange('date', e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ 
+                  max: getTodayString(),
+                  style: { 
+                    paddingRight: '12px',
+                    textAlign: 'left'
+                  }
+                }}
+                InputProps={{
+                  style: {
+                    paddingRight: '8px'
+                  }
+                }}
+                error={isFutureDate(calendarLogEntry.date)}
+                helperText={isFutureDate(calendarLogEntry.date) ? 'Cannot log for a future date' : ''}
+              />
+              {habits[calendarLogEntry.habitIndex]?.trackingType === "progress" && (
+                <TextField
+                  label={`Progress (${habits[calendarLogEntry.habitIndex]?.units || 'units'})`}
+                  value={calendarLogEntry.progress}
+                  onChange={e => handleCalendarLogChange('progress', e.target.value)}
+                  fullWidth
+                  placeholder={`e.g. ${habits[calendarLogEntry.habitIndex]?.target || '5'}`}
+                  type="number"
+                  required
+                />
+              )}
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>
+                  How did you feel?
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {[1, 2, 3, 4, 5].map((feeling) => (
+                    <Box
+                      key={feeling}
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: calendarLogEntry.feeling === feeling ? 'primary.light' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        }
+                      }}
+                      onClick={() => handleCalendarLogChange('feeling', feeling)}
+                    >
+                      <Typography variant="h4" sx={{ mb: 0.5 }}>
+                        {getFeelingEmoji(feeling)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ textAlign: 'center' }}>
+                        {getFeelingText(feeling)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+              <TextField
+                label="Notes (optional)"
+                value={calendarLogEntry.notes}
+                onChange={e => handleCalendarLogChange('notes', e.target.value)}
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="How did it go? Any thoughts?"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCalendarLogModalOpen(false)} color="secondary">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCalendarLogSubmit} 
+              variant="contained" 
+              color="primary"
+              disabled={isFutureDate(calendarLogEntry.date)}
+            >
+              {calendarLogEntry.progress || calendarLogEntry.completed ? 'Update' : 'Log'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+
       </Box>
     </ThemeProvider>
   );

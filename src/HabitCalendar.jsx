@@ -29,7 +29,7 @@ function formatDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry }) => {
+const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDateClick }) => {
   const theme = useTheme();
   const today = new Date();
   const [current, setCurrent] = useState({
@@ -75,15 +75,28 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry }) => {
     if (!date) return;
     
     const dateStr = formatDate(current.year, current.month, date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(dateStr);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Prevent clicking on future dates
+    if (selectedDate > today) return;
+    
     const existingEntry = completions[dateStr]?.[habitIndex];
     
-    // Simple log entry for now
-    onLogEntry(dateStr, habitIndex, {
-      completed: true,
-      feeling: existingEntry?.feeling || 3,
-      duration: existingEntry?.duration || '',
-      notes: existingEntry?.notes || ''
-    });
+    // Call the parent's onDateClick handler with more detailed information
+    if (onDateClick) {
+      onDateClick(dateStr, habitIndex, existingEntry, habit);
+    } else {
+      // Fallback to old behavior
+      onLogEntry(dateStr, habitIndex, {
+        completed: true,
+        feeling: existingEntry?.feeling || 3,
+        duration: existingEntry?.duration || '',
+        notes: existingEntry?.notes || ''
+      });
+    }
   };
 
   // Theme-aware colors
@@ -109,9 +122,6 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry }) => {
         </IconButton>
         <Box sx={{ flex: 1, textAlign: 'center' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, letterSpacing: 1, fontSize: '0.85rem', color: textColor, lineHeight: 1.2 }}>
-            {habit?.title || 'Habit'}
-          </Typography>
-          <Typography variant="caption" sx={{ color: textColor, opacity: 0.8, fontSize: '0.7rem' }}>
             {new Date(current.year, current.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
           </Typography>
         </Box>
@@ -164,30 +174,48 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry }) => {
               return (
                 <Box
                   key={colIdx}
-                  sx={{
-                    minHeight: 28,
-                    minWidth: MIN_WIDTH,
-                    borderBottom: cellBorder,
-                    borderRight: colIdx === 6 ? 'none' : cellBorder,
-                    background: cellBg,
-                    textAlign: 'center',
-                    p: 0,
-                  }}
+                                  sx={{
+                  minHeight: 36,
+                  minWidth: MIN_WIDTH,
+                  borderBottom: cellBorder,
+                  borderRight: colIdx === 6 ? 'none' : cellBorder,
+                  background: cellBg,
+                  textAlign: 'center',
+                  p: 0,
+                }}
                 />
               );
             }
 
             const dateStr = formatDate(current.year, current.month, date);
             const entry = completions[dateStr]?.[habitIndex];
-            const isCompleted = entry && (entry.completed || entry.feeling > 0);
+            const isLogged = entry && (entry.completed || entry.feeling > 0 || entry.progress);
             const isToday = dateStr === new Date().toISOString().split('T')[0];
+            
+            // Determine completion status based on habit type
+            let isSuccessful = false;
+            let isBelowTarget = false;
+            
+            if (isLogged && habit) {
+              if (habit.trackingType === "progress" && entry.progress) {
+                // Progress-based habit: check if target was met
+                const target = parseFloat(habit.target) || 0;
+                const progress = parseFloat(entry.progress) || 0;
+                isSuccessful = progress >= target;
+                isBelowTarget = progress < target && progress > 0;
+              } else {
+                // Completion-based habit: check if completed
+                isSuccessful = entry.completed === true;
+                isBelowTarget = !entry.completed && (entry.feeling > 0 || entry.notes);
+              }
+            }
 
             return (
               <Box
                 key={colIdx}
                 onClick={() => handleDateClick(date)}
                 sx={{
-                  minHeight: 28,
+                  minHeight: 36,
                   minWidth: MIN_WIDTH,
                   borderBottom: cellBorder,
                   borderRight: colIdx === 6 ? 'none' : cellBorder,
@@ -210,14 +238,14 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry }) => {
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: isToday ? 'bold' : 'normal' }}>
                   {date}
                 </Typography>
-                {isCompleted && (
+                {isLogged && (
                   <Box sx={{
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     borderRadius: '50%',
-                    background: entry?.feeling >= 4 ? '#27ae60' : entry?.feeling >= 3 ? '#f39c12' : '#e74c3c',
+                    background: isSuccessful ? '#27ae60' : isBelowTarget ? '#f39c12' : '#e74c3c',
                     position: 'absolute',
-                    bottom: 2,
+                    bottom: 4,
                     left: '50%',
                     transform: 'translateX(-50%)',
                   }} />

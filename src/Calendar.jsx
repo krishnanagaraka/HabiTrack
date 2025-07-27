@@ -30,7 +30,7 @@ function formatDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const Calendar = ({ completions = {}, habits = [] }) => {
+const Calendar = ({ completions = {} }) => {
   const theme = useTheme();
   const today = new Date();
   const [current, setCurrent] = useState({
@@ -139,12 +139,20 @@ const Calendar = ({ completions = {}, habits = [] }) => {
           }}
         >
           {week.map((date, colIdx) => {
-            let content = date || '';
+            // Removed unused content variable
             let circle = null;
             if (date) {
               const dateStr = formatDate(current.year, current.month, date);
-              const completed = completions[dateStr] || [];
-              const completedCount = completed.filter(Boolean).length;
+              const dayLogs = completions[dateStr];
+              
+              let completedCount = 0;
+              if (Array.isArray(dayLogs)) {
+                // Old format: array of booleans
+                completedCount = dayLogs.filter(Boolean).length;
+              } else if (dayLogs && typeof dayLogs === 'object') {
+                // New format: object with habit indices as keys
+                completedCount = Object.values(dayLogs).filter(logData => logData && logData.completed).length;
+              }
               if (completedCount > 0) {
                 circle = (
                   <Box sx={{
