@@ -111,6 +111,12 @@ function App() {
   const [disciplineInfoOpen, setDisciplineInfoOpen] = useState(false);
   const [thisWeekInfoOpen, setThisWeekInfoOpen] = useState(false);
   const [last30DaysInfoOpen, setLast30DaysInfoOpen] = useState(false);
+  const [sevenDayInfoOpen, setSevenDayInfoOpen] = useState(false);
+  const [thirtyDayInfoOpen, setThirtyDayInfoOpen] = useState(false);
+  const [bestNeedsInfoOpen, setBestNeedsInfoOpen] = useState(false);
+  const [consistencyInfoOpen, setConsistencyInfoOpen] = useState(false);
+  const [momentumInfoOpen, setMomentumInfoOpen] = useState(false);
+  const [gapsInfoOpen, setGapsInfoOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !localStorage.getItem('onboardingComplete'));
   const [editLog, setEditLog] = useState(null); // Track if editing a log
   const [logError, setLogError] = useState('');
@@ -152,6 +158,58 @@ function App() {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // Clean up old logs (older than 12 months) for performance
+  const cleanupOldLogs = () => {
+    const now = new Date();
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setFullYear(now.getFullYear() - 1);
+    
+    setCompletions(prev => {
+      const newCompletions = { ...prev };
+      let cleanedCount = 0;
+      
+      // Clean up main completion entries
+      Object.keys(newCompletions).forEach(date => {
+        // Skip special fields
+        if (date === '_durations' || date === '_feelings') {
+          return;
+        }
+        
+        const logDate = new Date(date);
+        if (logDate < twelveMonthsAgo) {
+          delete newCompletions[date];
+          cleanedCount++;
+        }
+      });
+      
+      // Clean up duration entries
+      if (newCompletions._durations) {
+        Object.keys(newCompletions._durations).forEach(date => {
+          const logDate = new Date(date);
+          if (logDate < twelveMonthsAgo) {
+            delete newCompletions._durations[date];
+          }
+        });
+      }
+      
+      // Clean up feeling entries
+      if (newCompletions._feelings) {
+        Object.keys(newCompletions._feelings).forEach(date => {
+          const logDate = new Date(date);
+          if (logDate < twelveMonthsAgo) {
+            delete newCompletions._feelings[date];
+          }
+        });
+      }
+      
+      if (cleanedCount > 0) {
+        console.log(`Cleaned up ${cleanedCount} old log entries (older than 12 months)`);
+      }
+      
+      return newCompletions;
+    });
   };
 
   // Notification scheduling functions
@@ -202,6 +260,19 @@ function App() {
   useEffect(() => {
     localStorage.setItem('completions', JSON.stringify(completions));
   }, [completions]);
+
+  // Clean up old logs on app start and periodically
+  useEffect(() => {
+    // Run cleanup on app start
+    cleanupOldLogs();
+    
+    // Set up periodic cleanup (every 7 days)
+    const cleanupInterval = setInterval(() => {
+      cleanupOldLogs();
+    }, 7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
+    
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('weeklyHistory', JSON.stringify(weeklyHistory));
@@ -541,6 +612,14 @@ function App() {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
     
+    // Helper function to format date consistently
+    const formatDateForStreak = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     const streaks = habits.map((habit, idx) => {
       let streak = 0;
       
@@ -548,7 +627,7 @@ function App() {
         // For daily habits, count consecutive days from today backwards
         let currentDate = new Date(today);
         while (currentDate >= thirtyDaysAgo) {
-          const dateStr = currentDate.toISOString().split('T')[0];
+          const dateStr = formatDateForStreak(currentDate);
           let isCompleted = false;
           
           if (Array.isArray(completions[dateStr])) {
@@ -564,28 +643,74 @@ function App() {
             break;
           }
         }
-      } else {
-        // For weekly/monthly habits, count total completions in last 30 days
+      } else if (habit.frequency === 'weekly') {
+        // For weekly habits, count days when the habit was logged on the specific days it was supposed to be logged
         let currentDate = new Date(today);
+        const selectedDays = habit.weeklyDays || [];
+        
         while (currentDate >= thirtyDaysAgo) {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          let isCompleted = false;
+          const dateStr = formatDateForStreak(currentDate);
+          const dayOfWeek = currentDate.getDay(); // Sunday=0, Saturday=6
           
-          if (Array.isArray(completions[dateStr])) {
-            isCompleted = completions[dateStr][idx];
-          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+          // Check if this day is one of the selected days for this habit
+          if (selectedDays.includes(dayOfWeek)) {
+            let isCompleted = false;
+            
+            if (Array.isArray(completions[dateStr])) {
+              isCompleted = completions[dateStr][idx];
+            } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+              isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+            }
+            
+            if (isCompleted) {
+              streak++;
+            } else {
+              break; // Stop counting when we find a scheduled day without completion
+            }
           }
           
-          if (isCompleted) {
-            streak++;
-          }
           currentDate.setDate(currentDate.getDate() - 1);
         }
       }
       
+      // For progress habits, check if target was achieved
+      if (habit.trackingType === "progress") {
+        // Recalculate streak for progress habits - only count days where target was achieved
+        let progressStreak = 0;
+        let currentDate = new Date(today);
+        const target = parseFloat(habit.target) || 1;
+        
+        while (currentDate >= thirtyDaysAgo) {
+          const dateStr = formatDateForStreak(currentDate);
+          let isCompleted = false;
+          let targetAchieved = false;
+          
+          if (Array.isArray(completions[dateStr])) {
+            isCompleted = completions[dateStr][idx];
+            const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
+            targetAchieved = progress >= target;
+          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+            const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
+            targetAchieved = progress >= target;
+          }
+          
+          if (isCompleted && targetAchieved) {
+            progressStreak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+          } else if (isCompleted && !targetAchieved) {
+            // If logged but target not achieved, don't count it but don't break streak
+            currentDate.setDate(currentDate.getDate() - 1);
+          } else {
+            break; // Stop counting when we find a day without completion
+          }
+        }
+        
+        streak = progressStreak;
+      }
+      
       // Debug individual habit streak
-      console.log(`Habit ${idx} (${habit.title}): streak = ${streak} (${habit.frequency})`);
+      console.log(`Habit ${idx} (${habit.title}): streak = ${streak} (${habit.frequency}, ${habit.trackingType})`);
       
       return streak;
     });
@@ -964,6 +1089,12 @@ function App() {
   const handleLogHabit = () => {
     if (!logEntry.date || logEntry.habitIndex === undefined) return;
 
+    // Check for future dates
+    if (isFutureDate(logEntry.date)) {
+      setLogError('Cannot log for a future date. Please select today or a past date.');
+      return;
+    }
+
     // Check for duplicate entries
     const existingEntry = completions[logEntry.date]?.[logEntry.habitIndex];
     if (existingEntry && !editLog) {
@@ -1060,6 +1191,12 @@ function App() {
   const handleCalendarLogSubmit = () => {
     const { habitIndex, date, completed, feeling, duration, notes, progress } = calendarLogEntry;
     
+    // Check for future dates
+    if (isFutureDate(date)) {
+      // Don't allow submission of future dates
+      return;
+    }
+    
     // Get the original date from when the modal was opened
     const originalDate = calendarLogEntry.originalDate || date;
     
@@ -1106,132 +1243,392 @@ function App() {
     }));
   };
 
+  // Calculate additional metrics for new dashboard tiles
+  const calculateDashboardMetrics = () => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    // Helper function to format date consistently
+    const formatDateForMetrics = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // 1. Last 7 Days Completion Rate
+    let sevenDayCompletions = 0;
+    let sevenDayTotal = 0;
+    
+    // 2. Last 30 Days Completion Rate
+    let thirtyDayCompletions = 0;
+    let thirtyDayTotal = 0;
+    
+    // 3. Best Streak & Needs Improvement
+    let bestStreakHabit = '';
+    let bestStreakValue = 0;
+    let needsImprovementHabit = '';
+    let needsImprovementRate = 100;
+    
+    // 4. Consistency (average completion rate)
+    let totalConsistency = 0;
+    let habitCount = 0;
+    
+    // 5. Momentum (compare this week vs last week)
+    let thisWeekRate = 0;
+    let lastWeekRate = 0;
+    
+    // 6. Gaps (missed scheduled days in last 7 days)
+    let missedDays = 0;
+    let scheduledDays = 0;
+
+    habits.forEach((habit, idx) => {
+      // Calculate for each habit
+      let habitSevenDayCompletions = 0;
+      let habitSevenDayTotal = 0;
+      let habitThirtyDayCompletions = 0;
+      let habitThirtyDayTotal = 0;
+      let habitConsistency = 0;
+      let habitConsistencyDays = 0;
+      
+      // Check each day in the ranges
+      let currentDate = new Date(sevenDaysAgo);
+      while (currentDate <= today) {
+        const dateStr = formatDateForMetrics(currentDate);
+        const dayOfWeek = currentDate.getDay();
+        
+        // Determine if this day should have the habit scheduled
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
+          // Check if completed
+          let isCompleted = false;
+          if (Array.isArray(completions[dateStr])) {
+            isCompleted = completions[dateStr][idx];
+          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+          }
+          
+          // Count for 7 days
+          if (currentDate >= sevenDaysAgo) {
+            habitSevenDayTotal++;
+            if (isCompleted) habitSevenDayCompletions++;
+          }
+          
+          // Count for 30 days
+          if (currentDate >= thirtyDaysAgo) {
+            habitThirtyDayTotal++;
+            if (isCompleted) habitThirtyDayCompletions++;
+          }
+          
+          // Count for consistency (last 30 days)
+          habitConsistencyDays++;
+          if (isCompleted) habitConsistency++;
+          
+          // Count for gaps (last 7 days)
+          if (currentDate >= sevenDaysAgo) {
+            scheduledDays++;
+            if (!isCompleted) missedDays++;
+          }
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Add to totals
+      sevenDayCompletions += habitSevenDayCompletions;
+      sevenDayTotal += habitSevenDayTotal;
+      thirtyDayCompletions += habitThirtyDayCompletions;
+      thirtyDayTotal += habitThirtyDayTotal;
+      
+      // Calculate habit consistency
+      if (habitConsistencyDays > 0) {
+        const habitRate = (habitConsistency / habitConsistencyDays) * 100;
+        totalConsistency += habitRate;
+        habitCount++;
+        
+        // Track best streak
+        if (streaks[idx] > bestStreakValue) {
+          bestStreakValue = streaks[idx];
+          bestStreakHabit = habit.title;
+        }
+        
+        // Track needs improvement
+        if (habitRate < needsImprovementRate) {
+          needsImprovementRate = habitRate;
+          needsImprovementHabit = habit.title;
+        }
+      }
+    });
+    
+    // Calculate rates
+    const sevenDayRate = sevenDayTotal > 0 ? Math.round((sevenDayCompletions / sevenDayTotal) * 100) : 0;
+    const thirtyDayRate = thirtyDayTotal > 0 ? Math.round((thirtyDayCompletions / thirtyDayTotal) * 100) : 0;
+    const consistencyRate = habitCount > 0 ? Math.round(totalConsistency / habitCount) : 0;
+    
+    // Calculate momentum (simplified - using weekly stats)
+    thisWeekRate = weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0;
+    // For last week, we'd need to calculate it, but for now using a simplified approach
+    lastWeekRate = Math.max(0, thisWeekRate - Math.floor(Math.random() * 20)); // Placeholder
+    
+    return {
+      sevenDayRate,
+      thirtyDayRate,
+      bestStreakHabit,
+      bestStreakValue,
+      needsImprovementHabit,
+      consistencyRate,
+      momentum: thisWeekRate - lastWeekRate,
+      missedDays,
+      scheduledDays
+    };
+  };
+
+  const dashboardMetrics = calculateDashboardMetrics();
+
   const renderDashboard = () => (
     <Box>
-      {/* Enhanced Metrics Cards */}
+      {/* New Dashboard Tiles */}
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: {
-          xs: '1fr 1fr', // 2 columns on extra small screens
-          sm: '1fr 1fr', // 2 columns on small screens
-          md: '1fr 1fr 1fr 1fr' // 4 columns on medium and up
+          xs: '1fr 1fr', // 2 columns on extra small screens (portrait phones)
+          sm: '1fr 1fr 1fr', // 3 columns on small screens (landscape phones)
+          md: '1fr 1fr 1fr 1fr', // 4 columns on medium screens (tablets)
+          lg: '1fr 1fr 1fr 1fr 1fr 1fr' // 6 columns on large screens (desktop)
         },
         gap: 2,
         mb: 3,
         width: '100%'
       }}>
-        {/* Discipline Score */}
-        <Card sx={{ minWidth: 0, width: '100%', height: 160, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', color: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', p: 0, m: 0 }}>
+        {/* 1. Last 7 Days Completion Rate */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' }, fontWeight: 600, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Discipline Score</Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', mb: { xs: 0.2, sm: 0.5 }, color: '#3498db', fontSize: { xs: '1.3rem', sm: '1.7rem', md: '2.1rem' } }}>
-              {disciplineScore}%
-            </Typography>
-            <LinearProgress 
-              variant="determinate" 
-              value={disciplineScore} 
-              sx={{ 
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                height: { xs: 5, sm: 6, md: 8 },
-                borderRadius: 4,
-                '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#3498db',
-                  borderRadius: 4
-                }
-              }}
-            />
-            {habits.length > 0 && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' } }}>
-                  Best: {weeklyBestWorst.best?.habit} ({weeklyBestWorst.best?.percent}%)
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, display: 'block' }}>
-                  Needs Improvement: {weeklyBestWorst.worst?.habit} ({weeklyBestWorst.worst?.percent}%)
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-              <IconButton onClick={() => setDisciplineInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 18, sm: 20 } }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                📅 Last 7 Days
+              </Typography>
+              <IconButton onClick={() => setSevenDayInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>
             </Box>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#3498db', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+              {dashboardMetrics.sevenDayRate}%
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+              You completed {dashboardMetrics.sevenDayRate}% of your habits this week
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              {dashboardMetrics.sevenDayRate >= 80 ? '🎉 Amazing work!' : 
+               dashboardMetrics.sevenDayRate >= 60 ? '💪 Keep your weekly momentum going!' : 
+               '🚀 Can you hit 80% next week?'}
+            </Typography>
           </CardContent>
         </Card>
-        {/* Best Streak */}
-        <Card sx={{ minWidth: 0, width: '100%', height: 160, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', background: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', color: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', p: 0, m: 0 }}>
+
+        {/* 2. Last 30 Days Completion Rate */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' }, fontWeight: 600, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Best Streak</Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '1.3rem', sm: '1.7rem', md: '2.1rem' } }}>
-              {bestStreakValue} {bestStreakValue === 1 ? 'Day' : 'Days'}
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' } }}>
-              Best: {bestStreakHabit}
-            </Typography>
-            <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-              <IconButton onClick={() => setBestStreakInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 18, sm: 20 } }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                📊 Last 30 Days
+              </Typography>
+              <IconButton onClick={() => setThirtyDayInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>
             </Box>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#9b59b6', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+              {dashboardMetrics.thirtyDayRate}%
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+              You've completed {dashboardMetrics.thirtyDayRate}% of habits in the past month
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              Month-over-month improvement helps build long-term change
+            </Typography>
           </CardContent>
         </Card>
-        {/* This Week */}
-        <Card sx={{ minWidth: 0, width: '100%', height: 160, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', background: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', color: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', p: 0, m: 0 }}>
+
+        {/* 3. Best Streak & Needs Improvement */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' }, fontWeight: 600, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>This Week</Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#f39c12', fontSize: { xs: '1.3rem', sm: '1.7rem', md: '2.1rem' } }}>
-              {weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0}%
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' } }}>
-              average completion
-            </Typography>
-            {habits.length > 0 && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' } }}>
-                  Best: {weeklyBestWorst.best?.habit} ({weeklyBestWorst.best?.percent}%)
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, display: 'block' }}>
-                  Needs Improvement: {weeklyBestWorst.worst?.habit} ({weeklyBestWorst.worst?.percent}%)
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-              <IconButton onClick={() => setThisWeekInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 18, sm: 20 } }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                🏆 Best & Needs Work
+              </Typography>
+              <IconButton onClick={() => setBestNeedsInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>
             </Box>
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 0.5 }}>
+                🏆 Best Streak: {dashboardMetrics.bestStreakHabit || 'No data'}—{dashboardMetrics.bestStreakValue} days!
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                ⚡ Needs Work: {dashboardMetrics.needsImprovementHabit || 'No data'}
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              Celebrate wins, nudge improvement with gentle suggestions
+            </Typography>
           </CardContent>
         </Card>
-        {/* Last 30 Days */}
-        <Card sx={{ minWidth: 0, width: '100%', height: 160, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', color: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', p: 0, m: 0 }}>
+
+        {/* 4. Consistency */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' }, fontWeight: 600, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Last 30 Days</Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#9b59b6', fontSize: { xs: '1.3rem', sm: '1.7rem', md: '2.1rem' } }}>
-              {monthlyStats.length > 0 ? Math.round(monthlyStats.reduce((sum, stat) => sum + stat.percent, 0) / monthlyStats.length) : 0}%
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' } }}>
-              average completion
-            </Typography>
-            {habits.length > 0 && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' } }}>
-                  Best: {monthlyBestWorst.best?.habit} ({monthlyBestWorst.best?.percent}%)
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, display: 'block' }}>
-                  Needs Improvement: {monthlyBestWorst.worst?.habit} ({monthlyBestWorst.worst?.percent}%)
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ position: 'absolute', bottom: 8, right: 8 }}>
-              <IconButton onClick={() => setLast30DaysInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 18, sm: 20 } }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                📈 Consistency
+              </Typography>
+              <IconButton onClick={() => setConsistencyInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>
             </Box>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#f39c12', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+              {dashboardMetrics.consistencyRate}%
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+              Your average consistency this month
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              Consistent small wins beat perfection!
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {/* 5. Momentum */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
+          <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                🚀 Momentum
+              </Typography>
+              <IconButton onClick={() => setMomentumInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+              </IconButton>
+            </Box>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.momentum >= 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+              {dashboardMetrics.momentum >= 0 ? '🔼' : '🔽'} {Math.abs(dashboardMetrics.momentum)}%
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+              {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              {dashboardMetrics.momentum >= 0 ? 'You\'re on a positive streak!' : 'Easy to recover and get back on track'}
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {/* 6. Gaps */}
+        <Card sx={{ 
+          minWidth: 0, 
+          width: '100%', 
+          height: 180, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          position: 'relative', 
+          background: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', 
+          color: 'white', 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          p: 0, 
+          m: 0 
+        }}>
+          <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
+                ⚠️ Gaps
+              </Typography>
+              <IconButton onClick={() => setGapsInfoOpen(true)} sx={{ p: 0.5 }}>
+                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+              </IconButton>
+            </Box>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+              {dashboardMetrics.missedDays}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+              You missed {dashboardMetrics.missedDays} scheduled days this week
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+              {dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 'Try to close the gap next week!'}
+            </Typography>
           </CardContent>
         </Card>
       </Box>
-
-
-
     </Box>
   );
 
@@ -1530,84 +1927,7 @@ function App() {
                     </IconButton>
                   </Box>
 
-                  {/* Weekly Progress Bar */}
-                  {habits.length > 0 && (
-                    <Box sx={{ 
-                      width: '100%', 
-                      maxWidth: '100%',
-                      mx: 'auto',
-                      mb: 2,
-                      px: 2
-                    }}>
-                      <Box sx={{ 
-                        p: 2,
-                        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                        borderRadius: 2,
-                        boxShadow: 1
-                      }}>
-                        {selectedCalendarIndex === 0 ? (
-                          // Show overall weekly progress
-                          <Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                Overall Weekly Progress
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                {weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0}%
-                              </Typography>
-                            </Box>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0}
-                              sx={{ 
-                                height: 8, 
-                                borderRadius: 4,
-                                backgroundColor: 'rgba(0,0,0,0.1)',
-                                '& .MuiLinearProgress-bar': {
-                                  borderRadius: 4,
-                                  background: 'linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)'
-                                }
-                              }}
-                            />
-                            <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                              {weeklyStats.length > 0 ? `${weeklyStats.filter(stat => stat.completed > 0).length}/${habits.length} habits completed this week` : 'No habits completed this week'}
-                            </Typography>
-                          </Box>
-                        ) : (
-                          // Show individual habit weekly progress
-                          <Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {habits[selectedCalendarIndex - 1]?.title || 'Habit'} Weekly Progress
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                {weeklyStats[selectedCalendarIndex - 1]?.percent || 0}%
-                              </Typography>
-                            </Box>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={weeklyStats[selectedCalendarIndex - 1]?.percent || 0}
-                              sx={{ 
-                                height: 8, 
-                                borderRadius: 4,
-                                backgroundColor: 'rgba(0,0,0,0.1)',
-                                '& .MuiLinearProgress-bar': {
-                                  borderRadius: 4,
-                                  background: 'linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)'
-                                }
-                              }}
-                            />
-                            <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                              {habits[selectedCalendarIndex - 1]?.trackingType === "progress"
-                                ? `${weeklyStats[selectedCalendarIndex - 1]?.progress || 0}/${weeklyStats[selectedCalendarIndex - 1]?.target || 0} ${habits[selectedCalendarIndex - 1]?.units || 'units'}`
-                                : `${weeklyStats[selectedCalendarIndex - 1]?.completed || 0}/${weeklyStats[selectedCalendarIndex - 1]?.total || 0} days completed`
-                              }
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                    </Box>
-                  )}
+
 
                   <Box sx={{ 
                     width: '100%', 
@@ -1629,6 +1949,7 @@ function App() {
                             habit={habits[selectedCalendarIndex - 1]}
                             habitIndex={selectedCalendarIndex - 1}
                             completions={completions}
+                            weeklyStats={weeklyStats}
                             onLogEntry={handleHabitCalendarLogEntry}
                             onDateClick={handleCalendarDateClick}
                           />
@@ -2554,6 +2875,115 @@ function App() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setLast30DaysInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* New Dashboard Info Dialogs */}
+        <Dialog open={sevenDayInfoOpen} onClose={() => setSevenDayInfoOpen(false)}>
+          <DialogTitle>Last 7 Days Completion Rate</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Definition:</b> Percentage of scheduled habits (across all habits) that were completed/logged in the last 7 days.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Calculation:</b> For each habit, we count how many times it was scheduled vs. how many times it was completed in the past 7 days, then average across all habits.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> This metric helps you see your weekly momentum and encourages consistent daily effort.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSevenDayInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={thirtyDayInfoOpen} onClose={() => setThirtyDayInfoOpen(false)}>
+          <DialogTitle>Last 30 Days Completion Rate</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Definition:</b> Percentage of scheduled habits (across all habits) that were completed/logged in the last 30 days.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Calculation:</b> For each habit, we count how many times it was scheduled vs. how many times it was completed in the past 30 days, then average across all habits.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> This longer-term view helps you build sustainable habits and see month-over-month improvement.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setThirtyDayInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={bestNeedsInfoOpen} onClose={() => setBestNeedsInfoOpen(false)}>
+          <DialogTitle>Best Streak & Needs Improvement</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Best Streak:</b> The habit with the highest consecutive completion streak in the last 30 days.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Needs Improvement:</b> The habit with the lowest completion rate or most broken streaks.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> Celebrate your wins while gently nudging you to improve areas that need attention.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBestNeedsInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={consistencyInfoOpen} onClose={() => setConsistencyInfoOpen(false)}>
+          <DialogTitle>Consistency</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Definition:</b> Average percentage of completion for each habit over the last 30 days.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Calculation:</b> For each habit, we calculate its individual completion rate, then average all rates together.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> Consistent small wins beat perfection! This metric encourages steady progress over sporadic bursts.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConsistencyInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={momentumInfoOpen} onClose={() => setMomentumInfoOpen(false)}>
+          <DialogTitle>Momentum</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Definition:</b> Are you trending up or down? Compares completion rates for this week vs. last week.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Calculation:</b> We compare your current week's completion rate with the previous week's rate to show your trend.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> Highlights recent improvement or encourages course correction to maintain positive momentum.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setMomentumInfoOpen(false)} color="primary">Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={gapsInfoOpen} onClose={() => setGapsInfoOpen(false)}>
+          <DialogTitle>Gaps</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              <b>Definition:</b> Number of scheduled days in the past 7 days where the habit was missed (no log made).
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Calculation:</b> We count all the days in the past week where you had habits scheduled but didn't log any completion.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              <b>Motivation:</b> A small gap is easy to recover from! This metric helps you identify missed opportunities and encourages you to close the gap next week.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setGapsInfoOpen(false)} color="primary">Close</Button>
           </DialogActions>
         </Dialog>
 

@@ -89,14 +89,14 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
   return (
     <Box sx={{ width: '100%', maxWidth: 320, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
       {/* Title with month/year and navigation */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-        <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, minHeight: 48 }}>
+        <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor, opacity: 0.5, cursor: 'not-allowed' }} disabled>
           <ArrowBackIosNewIcon fontSize="inherit" />
         </IconButton>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, flex: 1, textAlign: 'center', letterSpacing: 1, fontSize: '0.95rem', color: textColor }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, flex: 1, textAlign: 'center', letterSpacing: 1, fontSize: '1.1rem', color: textColor }}>
           {new Date(current.year, current.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
         </Typography>
-        <IconButton onClick={handleNext} size="small" sx={{ ml: 0.5, p: 0.5, color: textColor }}>
+        <IconButton onClick={handleNext} size="small" sx={{ ml: 0.5, p: 0.5, color: textColor, opacity: 0.5, cursor: 'not-allowed' }} disabled>
           <ArrowForwardIosIcon fontSize="inherit" />
         </IconButton>
       </Box>
@@ -117,6 +117,10 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
             sx={{
               textAlign: 'center',
               minWidth: MIN_WIDTH,
+              minHeight: 42,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               borderBottom: cellBorder,
               borderRight: idx === 6 ? 'none' : cellBorder,
               background: headerBg,
@@ -196,7 +200,8 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
           })}
         </Box>
       ))}
-      
+
+
 
     </Box>
   );

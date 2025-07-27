@@ -29,7 +29,7 @@ function formatDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDateClick }) => {
+const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], onLogEntry, onDateClick }) => {
   const theme = useTheme();
   const today = new Date();
   const [current, setCurrent] = useState({
@@ -116,15 +116,13 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
   return (
     <Box sx={{ width: '100%', maxWidth: 320, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
       {/* Title with habit name and navigation */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, px: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, px: 1, minHeight: 48 }}>
         <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor }}>
           <ArrowBackIosNewIcon fontSize="inherit" />
         </IconButton>
-        <Box sx={{ flex: 1, textAlign: 'center' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, letterSpacing: 1, fontSize: '0.85rem', color: textColor, lineHeight: 1.2 }}>
-            {new Date(current.year, current.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
-          </Typography>
-        </Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, flex: 1, textAlign: 'center', letterSpacing: 1, fontSize: '1.1rem', color: textColor }}>
+          {new Date(current.year, current.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+        </Typography>
         <IconButton onClick={handleNext} size="small" sx={{ ml: 0.5, p: 0.5, color: textColor }}>
           <ArrowForwardIosIcon fontSize="inherit" />
         </IconButton>
@@ -147,6 +145,10 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
             sx={{
               textAlign: 'center',
               minWidth: MIN_WIDTH,
+              minHeight: 42,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               borderBottom: cellBorder,
               borderRight: idx === 6 ? 'none' : cellBorder,
               background: headerBg,
@@ -255,6 +257,8 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
           })}
         </Box>
       ))}
+
+
     </Box>
   );
 };
