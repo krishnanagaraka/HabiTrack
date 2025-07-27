@@ -811,7 +811,7 @@ function App() {
   };
 
   // Helper to get all logs as an array (last 30 days only)
-  const getLogs = () => {
+  const getLogs = (filterHabitIndex = null) => {
     // Safety check - if no habits, return empty array
     if (!habits || habits.length === 0) {
       return [];
@@ -837,6 +837,11 @@ function App() {
       if (Array.isArray(dayLogs)) {
         // Old format: array of booleans
         dayLogs.forEach((completed, idx) => {
+          // Apply filter if specified
+          if (filterHabitIndex !== null && idx !== filterHabitIndex) {
+            return;
+          }
+          
           if (completed && habits[idx]) {
             const duration = completions._durations && completions._durations[date] && completions._durations[date][idx];
             const feeling = completions._feelings && completions._feelings[date] && completions._feelings[date][idx];
@@ -854,6 +859,11 @@ function App() {
         // New format: object with habit indices as keys
         Object.entries(dayLogs).forEach(([habitIndex, logData]) => {
           const idx = parseInt(habitIndex);
+          
+          // Apply filter if specified
+          if (filterHabitIndex !== null && idx !== filterHabitIndex) {
+            return;
+          }
           
           if (logData && logData.completed && idx >= 0 && idx < habits.length && habits[idx]) {
             logs.push({ 
@@ -1520,6 +1530,85 @@ function App() {
                     </IconButton>
                   </Box>
 
+                  {/* Weekly Progress Bar */}
+                  {habits.length > 0 && (
+                    <Box sx={{ 
+                      width: '100%', 
+                      maxWidth: '100%',
+                      mx: 'auto',
+                      mb: 2,
+                      px: 2
+                    }}>
+                      <Box sx={{ 
+                        p: 2,
+                        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                        borderRadius: 2,
+                        boxShadow: 1
+                      }}>
+                        {selectedCalendarIndex === 0 ? (
+                          // Show overall weekly progress
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                Overall Weekly Progress
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                {weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0}
+                              sx={{ 
+                                height: 8, 
+                                borderRadius: 4,
+                                backgroundColor: 'rgba(0,0,0,0.1)',
+                                '& .MuiLinearProgress-bar': {
+                                  borderRadius: 4,
+                                  background: 'linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)'
+                                }
+                              }}
+                            />
+                            <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              {weeklyStats.length > 0 ? `${weeklyStats.filter(stat => stat.completed > 0).length}/${habits.length} habits completed this week` : 'No habits completed this week'}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          // Show individual habit weekly progress
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {habits[selectedCalendarIndex - 1]?.title || 'Habit'} Weekly Progress
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                {weeklyStats[selectedCalendarIndex - 1]?.percent || 0}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={weeklyStats[selectedCalendarIndex - 1]?.percent || 0}
+                              sx={{ 
+                                height: 8, 
+                                borderRadius: 4,
+                                backgroundColor: 'rgba(0,0,0,0.1)',
+                                '& .MuiLinearProgress-bar': {
+                                  borderRadius: 4,
+                                  background: 'linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)'
+                                }
+                              }}
+                            />
+                            <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                              {habits[selectedCalendarIndex - 1]?.trackingType === "progress"
+                                ? `${weeklyStats[selectedCalendarIndex - 1]?.progress || 0}/${weeklyStats[selectedCalendarIndex - 1]?.target || 0} ${habits[selectedCalendarIndex - 1]?.units || 'units'}`
+                                : `${weeklyStats[selectedCalendarIndex - 1]?.completed || 0}/${weeklyStats[selectedCalendarIndex - 1]?.total || 0} days completed`
+                              }
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
                   <Box sx={{ 
                     width: '100%', 
                     maxWidth: '100%',
@@ -1534,7 +1623,7 @@ function App() {
                     }}>
                       <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
                         {selectedCalendarIndex === 0 ? (
-                          <Calendar completions={completions} habits={habits} />
+                          <Calendar completions={completions} habits={habits} weeklyStats={weeklyStats} />
                         ) : (
                           <HabitCalendar 
                             habit={habits[selectedCalendarIndex - 1]}
@@ -1550,8 +1639,13 @@ function App() {
                 </Box>
               </Box>
 
+
+
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, textAlign: 'center' }}>
-                Habit Logs
+                {selectedCalendarIndex > 0 
+                  ? `${habits[selectedCalendarIndex - 1]?.title || 'Habit'} Logs`
+                  : 'Habit Logs'
+                }
               </Typography>
               <Box sx={{ 
                 width: '100%', 
@@ -1577,7 +1671,9 @@ function App() {
                     <TableBody>
                       {(() => {
                         try {
-                          const logs = getLogs();
+                          // Filter logs based on selected calendar habit
+                          const filterHabitIndex = selectedCalendarIndex > 0 ? selectedCalendarIndex - 1 : null;
+                          const logs = getLogs(filterHabitIndex);
                           
                           if (logs.length === 0) {
                             return (
@@ -1586,6 +1682,8 @@ function App() {
                                   <Typography variant="body1" color="text.secondary">
                                     {habits.length === 0
                                       ? 'Create your habit and then log them to see logs here'
+                                      : selectedCalendarIndex > 0
+                                      ? `No logs found for ${habits[selectedCalendarIndex - 1]?.title || 'this habit'}`
                                       : 'Add your first log'}
                                   </Typography>
                                 </TableCell>

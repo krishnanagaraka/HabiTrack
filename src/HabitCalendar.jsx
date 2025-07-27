@@ -5,7 +5,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 const WEEKDAYS = ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'];
 
-const MIN_WIDTH = 36;
+const MIN_WIDTH = 42; // Increased from 36 to make calendar bigger
 
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -114,7 +114,7 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
   const cellBorder = `1px solid ${borderColor}`;
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 252, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
+    <Box sx={{ width: '100%', maxWidth: 320, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
       {/* Title with habit name and navigation */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, px: 1 }}>
         <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor }}>
@@ -175,7 +175,7 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
                 <Box
                   key={colIdx}
                                   sx={{
-                  minHeight: 36,
+                  minHeight: 42,
                   minWidth: MIN_WIDTH,
                   borderBottom: cellBorder,
                   borderRight: colIdx === 6 ? 'none' : cellBorder,
@@ -215,14 +215,14 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
                 key={colIdx}
                 onClick={() => handleDateClick(date)}
                 sx={{
-                  minHeight: 36,
+                  minHeight: 42,
                   minWidth: MIN_WIDTH,
                   borderBottom: cellBorder,
                   borderRight: colIdx === 6 ? 'none' : cellBorder,
                   background: cellBg,
                   textAlign: 'center',
                   fontWeight: 500,
-                  fontSize: '0.85rem',
+                  fontSize: '0.9rem',
                   color: textColor,
                   position: 'relative',
                   p: 0,
@@ -235,7 +235,7 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, onLogEntry, onDate
                   }),
                 }}
               >
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: isToday ? 'bold' : 'normal' }}>
+                <Typography sx={{ fontSize: '0.8rem', fontWeight: isToday ? 'bold' : 'normal' }}>
                   {date}
                 </Typography>
                 {isLogged && (

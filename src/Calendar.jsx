@@ -5,7 +5,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 const WEEKDAYS = ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa']; // Sunday to Saturday
 
-const MIN_WIDTH = 36; // px (smaller for tile)
+const MIN_WIDTH = 42; // px (consistent with HabitCalendar)
 
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -30,7 +30,7 @@ function formatDate(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const Calendar = ({ completions = {} }) => {
+const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
   const theme = useTheme();
   const today = new Date();
   const [current, setCurrent] = useState({
@@ -87,7 +87,7 @@ const Calendar = ({ completions = {} }) => {
   const cellBorder = `1px solid ${borderColor}`;
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 252, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
+    <Box sx={{ width: '100%', maxWidth: 320, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
       {/* Title with month/year and navigation */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
         <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor }}>
@@ -175,7 +175,7 @@ const Calendar = ({ completions = {} }) => {
               <Box
                 key={colIdx}
                 sx={{
-                  minHeight: 32,
+                  minHeight: 42,
                   minWidth: MIN_WIDTH,
                   borderBottom: cellBorder,
                   borderRight: colIdx === 6 ? 'none' : cellBorder,
@@ -183,7 +183,7 @@ const Calendar = ({ completions = {} }) => {
                   ...(rowIdx === 4 && { borderBottom: cellBorder }), // bottom border for last row
                   textAlign: 'center',
                   fontWeight: 500,
-                  fontSize: '0.95rem',
+                  fontSize: '0.9rem',
                   color: textColor,
                   position: 'relative',
                   p: 0,
@@ -196,6 +196,8 @@ const Calendar = ({ completions = {} }) => {
           })}
         </Box>
       ))}
+      
+
     </Box>
   );
 };
