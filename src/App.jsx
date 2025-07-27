@@ -39,6 +39,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CircleIcon from "@mui/icons-material/Circle";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SelfImprovementIcon from '@mui/icons-material/SelfImprovement';
@@ -1267,11 +1268,93 @@ function App() {
     let thirtyDayCompletions = 0;
     let thirtyDayTotal = 0;
     
-    // 3. Best Streak & Needs Improvement
+    // 3. Best Streak & Needs Improvement (180 days)
     let bestStreakHabit = '';
     let bestStreakValue = 0;
     let needsImprovementHabit = '';
     let needsImprovementRate = 100;
+    
+    // Calculate streaks for last 180 days
+    const oneEightyDaysAgo = new Date(today);
+    oneEightyDaysAgo.setDate(today.getDate() - 180);
+    
+    habits.forEach((habit, idx) => {
+      let currentStreak = 0;
+      let maxStreak = 0;
+      let totalScheduledDays = 0;
+      let totalCompletedDays = 0;
+      
+      // Go through each day in the last 180 days
+      let currentDate = new Date(oneEightyDaysAgo);
+      while (currentDate <= today) {
+        const dateStr = formatDateForMetrics(currentDate);
+        const dayOfWeek = currentDate.getDay();
+        
+        // Determine if this day should have the habit scheduled
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
+          totalScheduledDays++;
+          
+          // Check if completed
+          let isCompleted = false;
+          let meetsTarget = false;
+          
+          if (Array.isArray(completions[dateStr])) {
+            isCompleted = completions[dateStr][idx];
+            // For progress habits, check if target is met
+            if (habit.trackingType === 'progress' && isCompleted) {
+              const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
+              const target = parseFloat(habit.target) || 1;
+              meetsTarget = progress >= target;
+            } else {
+              meetsTarget = isCompleted;
+            }
+          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
+            // For progress habits, check if target is met
+            if (habit.trackingType === 'progress' && isCompleted) {
+              const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
+              const target = parseFloat(habit.target) || 1;
+              meetsTarget = progress >= target;
+            } else {
+              meetsTarget = isCompleted;
+            }
+          }
+          
+          // For progress habits, only count if target is met
+          const shouldCount = habit.trackingType === 'progress' ? meetsTarget : isCompleted;
+          
+          if (shouldCount) {
+            totalCompletedDays++;
+            currentStreak++;
+            maxStreak = Math.max(maxStreak, currentStreak);
+          } else {
+            currentStreak = 0;
+          }
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Update best streak
+      if (maxStreak > bestStreakValue) {
+        bestStreakValue = maxStreak;
+        bestStreakHabit = habit.title;
+      }
+      
+      // Calculate completion rate for needs improvement (exclude the best streak habit)
+      const completionRate = totalScheduledDays > 0 ? (totalCompletedDays / totalScheduledDays) * 100 : 0;
+      if (completionRate < needsImprovementRate && habit.title !== bestStreakHabit) {
+        needsImprovementRate = completionRate;
+        needsImprovementHabit = habit.title;
+      }
+    });
     
     // 4. Consistency (average completion rate)
     let totalConsistency = 0;
@@ -1354,18 +1437,6 @@ function App() {
         const habitRate = (habitConsistency / habitConsistencyDays) * 100;
         totalConsistency += habitRate;
         habitCount++;
-        
-        // Track best streak
-        if (streaks[idx] > bestStreakValue) {
-          bestStreakValue = streaks[idx];
-          bestStreakHabit = habit.title;
-        }
-        
-        // Track needs improvement
-        if (habitRate < needsImprovementRate) {
-          needsImprovementRate = habitRate;
-          needsImprovementHabit = habit.title;
-        }
       }
     });
     
@@ -1373,6 +1444,37 @@ function App() {
     const sevenDayRate = sevenDayTotal > 0 ? Math.round((sevenDayCompletions / sevenDayTotal) * 100) : 0;
     const thirtyDayRate = thirtyDayTotal > 0 ? Math.round((thirtyDayCompletions / thirtyDayTotal) * 100) : 0;
     const consistencyRate = habitCount > 0 ? Math.round(totalConsistency / habitCount) : 0;
+    
+    // Check if there are at least 3 days of logs for at least 1 habit in the last 7 days
+    let hasMinimumActivity = false;
+    let daysWithLogs = new Set();
+    let totalLogsInLast7Days = 0;
+    
+    let currentDate = new Date(sevenDaysAgo);
+    while (currentDate <= today) {
+      const dateStr = formatDateForMetrics(currentDate);
+      if (completions[dateStr]) {
+        if (Array.isArray(completions[dateStr])) {
+          // Old format: check if any habit was completed
+          const completedCount = completions[dateStr].filter(Boolean).length;
+          if (completedCount > 0) {
+            daysWithLogs.add(dateStr);
+            totalLogsInLast7Days += completedCount;
+          }
+        } else if (typeof completions[dateStr] === 'object') {
+          // New format: check if any habit was completed
+          const completedCount = Object.values(completions[dateStr]).filter(logData => logData && logData.completed).length;
+          if (completedCount > 0) {
+            daysWithLogs.add(dateStr);
+            totalLogsInLast7Days += completedCount;
+          }
+        }
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Show tile if there are at least 3 total logs OR at least 2 different days with logs
+    hasMinimumActivity = totalLogsInLast7Days >= 3 || daysWithLogs.size >= 2;
     
     // Calculate momentum (simplified - using weekly stats)
     thisWeekRate = weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0;
@@ -1388,7 +1490,8 @@ function App() {
       consistencyRate,
       momentum: thisWeekRate - lastWeekRate,
       missedDays,
-      scheduledDays
+      scheduledDays,
+      hasMinimumActivity
     };
   };
 
@@ -1425,27 +1528,63 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                📅 Last 7 Days
-              </Typography>
-              <IconButton onClick={() => setSevenDayInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
-            </Box>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#3498db', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
-              {dashboardMetrics.sevenDayRate}%
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.25rem', sm: '1.375rem' }, fontWeight: 600, mb: 1 }}>
+              Last 7 Days
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
-              You completed {dashboardMetrics.sevenDayRate}% of your habits this week
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
-              {dashboardMetrics.sevenDayRate >= 80 ? '🎉 Amazing work!' : 
-               dashboardMetrics.sevenDayRate >= 60 ? '💪 Keep your weekly momentum going!' : 
-               '🚀 Can you hit 80% next week?'}
-            </Typography>
-          </CardContent>
-        </Card>
+            
+            {dashboardMetrics.hasMinimumActivity ? (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: dashboardMetrics.sevenDayRate < 33 ? '#e74c3c' : 
+                         dashboardMetrics.sevenDayRate < 66 ? '#f39c12' : '#27ae60', 
+                  fontSize: { xs: '2.34rem', sm: '2.88rem', md: '3.42rem' }, 
+                  mb: 1 
+                }}>
+                  {dashboardMetrics.sevenDayRate}%
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                  habits completed this week
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.85rem', sm: '0.95rem' }, fontStyle: 'italic' }}>
+                  Try to hit 75%, you can do it
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: 'rgba(255,255,255,0.6)', 
+                  fontSize: { xs: '2.34rem', sm: '2.88rem', md: '3.42rem' }, 
+                  mb: 1 
+                }}>
+                  --
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                  Log 3+ habits this week to see your progress
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.85rem', sm: '0.95rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits to track your weekly performance!
+                </Typography>
+              </>
+                          )}
+            </CardContent>
+            <IconButton 
+              onClick={() => setSevenDayInfoOpen(true)} 
+              sx={{ 
+                position: 'absolute', 
+                bottom: 8, 
+                right: 8, 
+                p: 0.5,
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.2)'
+                }
+              }}
+            >
+              <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+            </IconButton>
+          </Card>
 
         {/* 2. Last 30 Days Completion Rate */}
         <Card sx={{ 
@@ -1463,27 +1602,41 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                📊 Last 30 Days
-              </Typography>
-              <IconButton onClick={() => setThirtyDayInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
-            </Box>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#9b59b6', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
+              Last 30 Days
+            </Typography>
+            <Typography variant="h3" sx={{ 
+              fontWeight: 'bold', 
+              color: dashboardMetrics.thirtyDayRate < 33 ? '#e74c3c' : 
+                     dashboardMetrics.thirtyDayRate < 66 ? '#f39c12' : '#27ae60', 
+              fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+              mb: 1 
+            }}>
               {dashboardMetrics.thirtyDayRate}%
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
-              You've completed {dashboardMetrics.thirtyDayRate}% of habits in the past month
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+              habits completed in last 30 days
             </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
-              Month-over-month improvement helps build long-term change
-            </Typography>
+
           </CardContent>
+          <IconButton 
+            onClick={() => setThirtyDayInfoOpen(true)} 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 8, 
+              right: 8, 
+              p: 0.5,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+          </IconButton>
         </Card>
 
-        {/* 3. Best Streak & Needs Improvement */}
+        {/* 3. Momentum */}
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
@@ -1499,26 +1652,38 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                🏆 Best & Needs Work
-              </Typography>
-              <IconButton onClick={() => setBestNeedsInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
-            </Box>
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 0.5 }}>
-                🏆 Best Streak: {dashboardMetrics.bestStreakHabit || 'No data'}—{dashboardMetrics.bestStreakValue} days!
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                ⚡ Needs Work: {dashboardMetrics.needsImprovementHabit || 'No data'}
-              </Typography>
-            </Box>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
-              Celebrate wins, nudge improvement with gentle suggestions
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
+              Momentum
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.momentum >= 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              {Math.abs(dashboardMetrics.momentum)}% 
+              {dashboardMetrics.momentum >= 0 ? 
+                <TrendingUpIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#27ae60' }} /> : 
+                <TrendingDownIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#e74c3c' }} />
+              }
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+              {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+              {dashboardMetrics.momentum >= 0 ? 'You\'re on a positive streak!' : 'Easy to recover and get back on track'}
             </Typography>
           </CardContent>
+          <IconButton 
+            onClick={() => setMomentumInfoOpen(true)} 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 8, 
+              right: 8, 
+              p: 0.5,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+          </IconButton>
         </Card>
 
         {/* 4. Consistency */}
@@ -1537,27 +1702,41 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                📈 Consistency
-              </Typography>
-              <IconButton onClick={() => setConsistencyInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
-            </Box>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#f39c12', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
+              Consistency
+            </Typography>
+            <Typography variant="h3" sx={{ 
+              fontWeight: 'bold', 
+              color: dashboardMetrics.consistencyRate < 33 ? '#e74c3c' : 
+                     dashboardMetrics.consistencyRate < 66 ? '#f39c12' : '#27ae60', 
+              fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+              mb: 1 
+            }}>
               {dashboardMetrics.consistencyRate}%
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
               Your average consistency this month
             </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
-              Consistent small wins beat perfection!
-            </Typography>
+
           </CardContent>
+          <IconButton 
+            onClick={() => setConsistencyInfoOpen(true)} 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 8, 
+              right: 8, 
+              p: 0.5,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+          </IconButton>
         </Card>
 
-        {/* 5. Momentum */}
+        {/* 5. Best Streak & Needs Improvement */}
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
@@ -1573,24 +1752,42 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                🚀 Momentum
-              </Typography>
-              <IconButton onClick={() => setMomentumInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
+              Best Streak
+            </Typography>
+            <Box sx={{ mb: 1 }}>
+              {dashboardMetrics.bestStreakValue > 0 ? (
+                <>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1.5 }}>
+                    🏆 Best Streak: {dashboardMetrics.bestStreakHabit}—{dashboardMetrics.bestStreakValue} days!
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                    ⚡ Needs Improvement: {dashboardMetrics.needsImprovementHabit}
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 0.5 }}>
+                  No streaks to show
+                </Typography>
+              )}
             </Box>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.momentum >= 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
-              {dashboardMetrics.momentum >= 0 ? '🔼' : '🔽'} {Math.abs(dashboardMetrics.momentum)}%
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
-              {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
-              {dashboardMetrics.momentum >= 0 ? 'You\'re on a positive streak!' : 'Easy to recover and get back on track'}
-            </Typography>
+            
           </CardContent>
+          <IconButton 
+            onClick={() => setBestNeedsInfoOpen(true)} 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 8, 
+              right: 8, 
+              p: 0.5,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+          </IconButton>
         </Card>
 
         {/* 6. Gaps */}
@@ -1609,24 +1806,37 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' }, fontWeight: 600 }}>
-                ⚠️ Gaps
-              </Typography>
-              <IconButton onClick={() => setGapsInfoOpen(true)} sx={{ p: 0.5 }}>
-                <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
-              </IconButton>
-            </Box>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem' }, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
+              Gaps
+            </Typography>
+            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1 }}>
               {dashboardMetrics.missedDays}
+              {dashboardMetrics.missedDays > 20 ? ' 😢😢😢' : 
+               dashboardMetrics.missedDays > 10 ? ' 😢😢' : 
+               dashboardMetrics.missedDays > 2 ? ' 😢' : ''}
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.65rem', sm: '0.75rem' }, mb: 1 }}>
-              You missed {dashboardMetrics.missedDays} scheduled days this week
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+              Missed logs in the last 7 days
             </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.6rem', sm: '0.7rem' }, fontStyle: 'italic' }}>
+            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
               {dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 'Try to close the gap next week!'}
             </Typography>
           </CardContent>
+          <IconButton 
+            onClick={() => setGapsInfoOpen(true)} 
+            sx={{ 
+              position: 'absolute', 
+              bottom: 8, 
+              right: 8, 
+              p: 0.5,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
+          </IconButton>
         </Card>
       </Box>
     </Box>
@@ -1767,8 +1977,16 @@ function App() {
           flexGrow: 0,
           boxShadow: 2,
           m: 0,
-          p: 0
-        }}>
+          p: 0,
+          cursor: 'pointer',
+          '&:hover': {
+            boxShadow: 4,
+            transform: 'translateY(-1px)',
+            transition: 'all 0.2s ease-in-out'
+          }
+        }}
+        onClick={() => handleEdit(idx)}
+        >
                           <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', p: 1, pb: '6px !important' }}>
     <Box sx={{ mb: 0.3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.1 }}>
@@ -1785,10 +2003,10 @@ function App() {
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <IconButton size="small" onClick={() => handleEdit(idx)} sx={{ p: 0.5 }}>
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" onClick={() => handleDelete(idx)} sx={{ p: 0.5 }}>
+          <IconButton size="small" onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(idx);
+          }} sx={{ p: 0.5 }}>
             <DeleteIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -2025,8 +2243,10 @@ function App() {
                                 sx={{ 
                                   '&:hover': { 
                                     backgroundColor: 'action.hover'
-                                  }
+                                  },
+                                  cursor: 'pointer'
                                 }}
+                                onClick={() => handleEditLog(log)}
                               >
                                 <TableCell sx={{ 
                                   fontWeight: 500, 
@@ -2079,19 +2299,6 @@ function App() {
                                     justifyContent: 'center',
                                     alignItems: 'center'
                                   }}>
-                                    <Tooltip title="Edit" placement="top">
-                                      <IconButton 
-                                        size="small" 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditLog(log);
-                                        }}
-                                        sx={{ p: { xs: 0.25, sm: 0.5 } }}
-                                      >
-                                        <EditIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
-                                      </IconButton>
-                                    </Tooltip>
-
                                     <Tooltip title="Delete" placement="top">
                                       <IconButton 
                                         size="small" 

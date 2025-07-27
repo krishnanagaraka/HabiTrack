@@ -155,7 +155,11 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
                 completedCount = dayLogs.filter(Boolean).length;
               } else if (dayLogs && typeof dayLogs === 'object') {
                 // New format: object with habit indices as keys
-                completedCount = Object.values(dayLogs).filter(logData => logData && logData.completed).length;
+                completedCount = Object.values(dayLogs).filter(logData => 
+                  logData && 
+                  logData.completed === true && 
+                  (logData.feeling > 0 || logData.progress || logData.notes)
+                ).length;
               }
               if (completedCount > 0) {
                 circle = (
