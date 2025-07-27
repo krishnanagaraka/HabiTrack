@@ -1481,6 +1481,24 @@ function App() {
     // For last week, we'd need to calculate it, but for now using a simplified approach
     lastWeekRate = Math.max(0, thisWeekRate - Math.floor(Math.random() * 20)); // Placeholder
     
+    // Calculate total logs in last 30 days
+    let totalLogsInLast30Days = 0;
+    currentDate = new Date(thirtyDaysAgo);
+    while (currentDate <= today) {
+      const dateStr = formatDateForMetrics(currentDate);
+      if (completions[dateStr]) {
+        if (Array.isArray(completions[dateStr])) {
+          totalLogsInLast30Days += completions[dateStr].filter(Boolean).length;
+        } else if (typeof completions[dateStr] === 'object') {
+          totalLogsInLast30Days += Object.values(completions[dateStr]).filter(logData => logData && logData.completed).length;
+        }
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Check if there's at least a week of data for momentum
+    const hasWeekOfData = daysWithLogs.size >= 7;
+    
     return {
       sevenDayRate,
       thirtyDayRate,
@@ -1491,7 +1509,9 @@ function App() {
       momentum: thisWeekRate - lastWeekRate,
       missedDays,
       scheduledDays,
-      hasMinimumActivity
+      hasMinimumActivity,
+      totalLogsInLast30Days,
+      hasWeekOfData
     };
   };
 
@@ -1528,7 +1548,7 @@ function App() {
           m: 0 
         }}>
           <CardContent sx={{ p: { xs: 1, sm: 1.5, md: 2 }, pb: 3, height: '100%' }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '1.25rem', sm: '1.375rem' }, fontWeight: 600, mb: 1 }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
               Last 7 Days
             </Typography>
             
@@ -1560,14 +1580,14 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
                   Log 3+ habits this week to see your progress
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.85rem', sm: '0.95rem' }, fontStyle: 'italic' }}>
-                  Start logging your habits to track your weekly performance!
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits
                 </Typography>
               </>
-                          )}
+            )}
             </CardContent>
             <IconButton 
               onClick={() => setSevenDayInfoOpen(true)} 
@@ -1605,18 +1625,39 @@ function App() {
             <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
               Last 30 Days
             </Typography>
-            <Typography variant="h3" sx={{ 
-              fontWeight: 'bold', 
-              color: dashboardMetrics.thirtyDayRate < 33 ? '#e74c3c' : 
-                     dashboardMetrics.thirtyDayRate < 66 ? '#f39c12' : '#27ae60', 
-              fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
-              mb: 1 
-            }}>
-              {dashboardMetrics.thirtyDayRate}%
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
-              habits completed in last 30 days
-            </Typography>
+            {dashboardMetrics.totalLogsInLast30Days >= 10 ? (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: dashboardMetrics.thirtyDayRate < 33 ? '#e74c3c' : 
+                         dashboardMetrics.thirtyDayRate < 66 ? '#f39c12' : '#27ae60', 
+                  fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+                  mb: 1 
+                }}>
+                  {dashboardMetrics.thirtyDayRate}%
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  habits completed in last 30 days
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: 'rgba(255,255,255,0.6)', 
+                  fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+                  mb: 1 
+                }}>
+                  --
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  Log 10+ habits to see your progress
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits regularly
+                </Typography>
+              </>
+            )}
 
           </CardContent>
           <IconButton 
@@ -1655,19 +1696,40 @@ function App() {
             <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
               Momentum
             </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.momentum >= 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-              {Math.abs(dashboardMetrics.momentum)}% 
-              {dashboardMetrics.momentum >= 0 ? 
-                <TrendingUpIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#27ae60' }} /> : 
-                <TrendingDownIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#e74c3c' }} />
-              }
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
-              {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
-              {dashboardMetrics.momentum >= 0 ? 'You\'re on a positive streak!' : 'Easy to recover and get back on track'}
-            </Typography>
+            {dashboardMetrics.hasWeekOfData ? (
+              <>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.momentum >= 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {Math.abs(dashboardMetrics.momentum)}% 
+                  {dashboardMetrics.momentum >= 0 ? 
+                    <TrendingUpIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#27ae60' }} /> : 
+                    <TrendingDownIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#e74c3c' }} />
+                  }
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+                  {dashboardMetrics.momentum >= 0 ? 'You\'re on a positive streak!' : 'Easy to recover and get back on track'}
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: 'rgba(255,255,255,0.6)', 
+                  fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+                  mb: 1 
+                }}>
+                  --
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  Log data at least for a week to see your momentum
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits
+                </Typography>
+              </>
+            )}
           </CardContent>
           <IconButton 
             onClick={() => setMomentumInfoOpen(true)} 
@@ -1705,18 +1767,39 @@ function App() {
             <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
               Consistency
             </Typography>
-            <Typography variant="h3" sx={{ 
-              fontWeight: 'bold', 
-              color: dashboardMetrics.consistencyRate < 33 ? '#e74c3c' : 
-                     dashboardMetrics.consistencyRate < 66 ? '#f39c12' : '#27ae60', 
-              fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
-              mb: 1 
-            }}>
-              {dashboardMetrics.consistencyRate}%
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
-              Your average consistency this month
-            </Typography>
+            {dashboardMetrics.totalLogsInLast30Days >= 10 ? (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: dashboardMetrics.consistencyRate < 33 ? '#e74c3c' : 
+                         dashboardMetrics.consistencyRate < 66 ? '#f39c12' : '#27ae60', 
+                  fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+                  mb: 1 
+                }}>
+                  {dashboardMetrics.consistencyRate}%
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  Your average consistency this month
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h3" sx={{ 
+                  fontWeight: 'bold', 
+                  color: 'rgba(255,255,255,0.6)', 
+                  fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, 
+                  mb: 1 
+                }}>
+                  --
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                  Log 10+ habits to see your progress
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits regularly
+                </Typography>
+              </>
+            )}
 
           </CardContent>
           <IconButton 
@@ -1759,11 +1842,13 @@ function App() {
               {dashboardMetrics.bestStreakValue > 0 ? (
                 <>
                   <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1.5 }}>
-                    🏆 Best Streak: {dashboardMetrics.bestStreakHabit}—{dashboardMetrics.bestStreakValue} days!
+                    🏆 {dashboardMetrics.bestStreakHabit}—{dashboardMetrics.bestStreakValue} days!
                   </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
-                    ⚡ Needs Improvement: {dashboardMetrics.needsImprovementHabit}
-                  </Typography>
+                  {dashboardMetrics.needsImprovementHabit && (
+                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                      ⚡ Needs Improvement: {dashboardMetrics.needsImprovementHabit}
+                    </Typography>
+                  )}
                 </>
               ) : (
                 <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 0.5 }}>

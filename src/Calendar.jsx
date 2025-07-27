@@ -167,12 +167,13 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
                     width: 18,
                     height: 18,
                     borderRadius: '50%',
-                    background: '#27ae60',
+                    backgroundColor: '#27ae60 !important',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     mx: 'auto',
                     mt: 0.2,
+                    border: '2px solid #27ae60',
                   }}>
                     <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.8rem' }}>{completedCount}</Typography>
                   </Box>
