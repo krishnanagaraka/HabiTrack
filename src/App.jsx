@@ -46,12 +46,11 @@ import SelfImprovementIcon from '@mui/icons-material/SelfImprovement';
 import ChecklistIcon from '@mui/icons-material/Checklist';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import CloseIcon from '@mui/icons-material/Close';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
 
 import Calendar from './Calendar';
 import HabitCalendar from './HabitCalendar';
 import { useTheme } from './useTheme';
+import LogGenerator from './components/LogGenerator';
 // Test data functions moved inline
 import notificationService from './notificationService';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -61,7 +60,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 function App() {
   // All hooks must be called at the top, before any conditional returns
-  const { darkMode, toggleDarkMode, theme } = useTheme();
+  const { darkMode, theme } = useTheme();
   const [habits, setHabits] = useState(() => {
     const saved = localStorage.getItem('habits');
     return saved ? JSON.parse(saved) : [];
@@ -118,6 +117,7 @@ function App() {
   const [consistencyInfoOpen, setConsistencyInfoOpen] = useState(false);
   const [momentumInfoOpen, setMomentumInfoOpen] = useState(false);
   const [gapsInfoOpen, setGapsInfoOpen] = useState(false);
+  const [logGeneratorOpen, setLogGeneratorOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !localStorage.getItem('onboardingComplete'));
   const [editLog, setEditLog] = useState(null); // Track if editing a log
   const [logError, setLogError] = useState('');
@@ -213,6 +213,62 @@ function App() {
     });
   };
 
+  // Clean up orphaned logs (logs for non-existent habits)
+  const cleanupOrphanedLogs = () => {
+    setCompletions(prev => {
+      const newCompletions = { ...prev };
+      let cleanedCount = 0;
+      
+      Object.keys(newCompletions).forEach(dateStr => {
+        // Skip special fields
+        if (dateStr === '_durations' || dateStr === '_feelings') {
+          return;
+        }
+        
+        const dateLogs = newCompletions[dateStr];
+        
+        if (Array.isArray(dateLogs)) {
+          // Old format: check if any habit index is out of bounds
+          const hasOrphanedLogs = dateLogs.some((log, index) => {
+            return log && index >= habits.length;
+          });
+          
+          if (hasOrphanedLogs) {
+            // Remove logs for non-existent habits
+            const cleanedLogs = dateLogs.slice(0, habits.length).map(log => 
+              log && typeof log === 'object' ? log : null
+            );
+            newCompletions[dateStr] = cleanedLogs;
+            cleanedCount++;
+          }
+        } else if (typeof dateLogs === 'object') {
+          // New format: check if any habit index is out of bounds
+          const hasOrphanedLogs = Object.keys(dateLogs).some(habitIndex => {
+            return parseInt(habitIndex) >= habits.length;
+          });
+          
+          if (hasOrphanedLogs) {
+            // Remove logs for non-existent habits
+            const cleanedLogs = {};
+            Object.keys(dateLogs).forEach(habitIndex => {
+              if (parseInt(habitIndex) < habits.length) {
+                cleanedLogs[habitIndex] = dateLogs[habitIndex];
+              }
+            });
+            newCompletions[dateStr] = cleanedLogs;
+            cleanedCount++;
+          }
+        }
+      });
+      
+      if (cleanedCount > 0) {
+        console.log(`Cleaned up ${cleanedCount} orphaned log entries`);
+      }
+      
+      return newCompletions;
+    });
+  };
+
   // Notification scheduling functions
   const scheduleHabitNotifications = async (habit) => {
     console.log('Scheduling notifications for habit:', habit.title, 'at time:', habit.startTime);
@@ -266,10 +322,12 @@ function App() {
   useEffect(() => {
     // Run cleanup on app start
     cleanupOldLogs();
+    cleanupOrphanedLogs();
     
     // Set up periodic cleanup (every 7 days)
     const cleanupInterval = setInterval(() => {
       cleanupOldLogs();
+      cleanupOrphanedLogs();
     }, 7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
     
     return () => clearInterval(cleanupInterval);
@@ -411,7 +469,7 @@ function App() {
           // For daily habits, use 7 days
           weeklyTarget = target * 7;
         }
-        const percent = weeklyTarget > 0 ? Math.round((totalProgress / weeklyTarget) * 100) : 0;
+        const percent = weeklyTarget > 0 ? parseFloat(((totalProgress / weeklyTarget) * 100).toFixed(1)) : 0;
         
         return {
           completed: completionDays,
@@ -505,7 +563,7 @@ function App() {
           // For daily habits, use 30 days
           monthlyTarget = target * 30;
         }
-        const percent = monthlyTarget > 0 ? Math.round((totalProgress / monthlyTarget) * 100) : 0;
+        const percent = monthlyTarget > 0 ? parseFloat(((totalProgress / monthlyTarget) * 100).toFixed(1)) : 0;
         
         return {
           completed: completionDays,
@@ -556,14 +614,14 @@ function App() {
         return {
           completed: last30DaysCompletions,
           total: totalDays,
-          percent: totalDays > 0 ? Math.round((last30DaysCompletions / totalDays) * 100) : 0
+          percent: totalDays > 0 ? parseFloat(((last30DaysCompletions / totalDays) * 100).toFixed(1)) : 0
         };
       }
     });
 
     // Calculate weekly completion rate
     const totalPercent = weeklyStats.reduce((sum, stat) => sum + stat.percent, 0);
-    const completionRate = habits.length > 0 ? Math.round(totalPercent / habits.length) : 0;
+    const completionRate = habits.length > 0 ? parseFloat((totalPercent / habits.length).toFixed(1)) : 0;
     
     // Calculate weekly streak
     const calculateWeeklyStreak = () => {
@@ -602,7 +660,7 @@ function App() {
       const streakScore = Math.min(currentStreak / targetStreak, 1) * 100;
       
       // 3. Hybrid Formula: 50% Completion Rate + 50% Streak Score
-      const hybridScore = Math.round(0.5 * completionRate + 0.5 * streakScore);
+      const hybridScore = parseFloat((0.5 * completionRate + 0.5 * streakScore).toFixed(1));
       
       return hybridScore;
     };
@@ -624,18 +682,49 @@ function App() {
     const streaks = habits.map((habit, idx) => {
       let streak = 0;
       
+      // Debug habit info
+      console.log(`\n=== Streak Debug for Habit ${idx} (${habit.title}) ===`);
+      console.log('Frequency:', habit.frequency);
+      console.log('Tracking Type:', habit.trackingType);
+      console.log('Weekly Days:', habit.weeklyDays);
+      console.log('Target:', habit.target);
+      
+      // Helper function to check if habit is completed (same as Dashboard)
+      const isHabitCompleted = (dateStr, habitIdx, habit) => {
+        let isCompleted = false;
+        let meetsTarget = false;
+        
+        if (Array.isArray(completions[dateStr])) {
+          isCompleted = completions[dateStr][habitIdx];
+          if (habit.trackingType === 'progress' && isCompleted) {
+            const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+            const target = parseFloat(habit.target) || 1;
+            meetsTarget = progress >= target;
+          } else {
+            meetsTarget = isCompleted;
+          }
+        } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+          isCompleted = completions[dateStr][habitIdx] && completions[dateStr][habitIdx].completed;
+          if (habit.trackingType === 'progress' && isCompleted) {
+            const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+            const target = parseFloat(habit.target) || 1;
+            meetsTarget = progress >= target;
+          } else {
+            meetsTarget = isCompleted;
+          }
+        }
+        
+        return habit.trackingType === 'progress' ? meetsTarget : isCompleted;
+      };
+      
       if (habit.frequency === 'daily') {
         // For daily habits, count consecutive days from today backwards
         let currentDate = new Date(today);
         while (currentDate >= thirtyDaysAgo) {
           const dateStr = formatDateForStreak(currentDate);
-          let isCompleted = false;
+          const isCompleted = isHabitCompleted(dateStr, idx, habit);
           
-          if (Array.isArray(completions[dateStr])) {
-            isCompleted = completions[dateStr][idx];
-          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
-          }
+          console.log(`  ${dateStr}: isCompleted = ${isCompleted}`);
           
           if (isCompleted) {
             streak++;
@@ -655,13 +744,9 @@ function App() {
           
           // Check if this day is one of the selected days for this habit
           if (selectedDays.includes(dayOfWeek)) {
-            let isCompleted = false;
+            const isCompleted = isHabitCompleted(dateStr, idx, habit);
             
-            if (Array.isArray(completions[dateStr])) {
-              isCompleted = completions[dateStr][idx];
-            } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-              isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
-            }
+            console.log(`  ${dateStr} (day ${dayOfWeek}): isCompleted = ${isCompleted}`);
             
             if (isCompleted) {
               streak++;
@@ -674,44 +759,7 @@ function App() {
         }
       }
       
-      // For progress habits, check if target was achieved
-      if (habit.trackingType === "progress") {
-        // Recalculate streak for progress habits - only count days where target was achieved
-        let progressStreak = 0;
-        let currentDate = new Date(today);
-        const target = parseFloat(habit.target) || 1;
-        
-        while (currentDate >= thirtyDaysAgo) {
-          const dateStr = formatDateForStreak(currentDate);
-          let isCompleted = false;
-          let targetAchieved = false;
-          
-          if (Array.isArray(completions[dateStr])) {
-            isCompleted = completions[dateStr][idx];
-            const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
-            targetAchieved = progress >= target;
-          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
-            const progress = parseFloat(completions[dateStr][idx]?.progress) || 0;
-            targetAchieved = progress >= target;
-          }
-          
-          if (isCompleted && targetAchieved) {
-            progressStreak++;
-            currentDate.setDate(currentDate.getDate() - 1);
-          } else if (isCompleted && !targetAchieved) {
-            // If logged but target not achieved, don't count it but don't break streak
-            currentDate.setDate(currentDate.getDate() - 1);
-          } else {
-            break; // Stop counting when we find a day without completion
-          }
-        }
-        
-        streak = progressStreak;
-      }
-      
-      // Debug individual habit streak
-      console.log(`Habit ${idx} (${habit.title}): streak = ${streak} (${habit.frequency}, ${habit.trackingType})`);
+      console.log(`Final streak for ${habit.title}: ${streak}`);
       
       return streak;
     });
@@ -1252,6 +1300,43 @@ function App() {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
     
+    // Debug logging
+    console.log('=== Dashboard Metrics Debug ===');
+    console.log('Habits count:', habits.length);
+    console.log('Completions keys:', Object.keys(completions).length);
+    console.log('Sample completions:', Object.keys(completions).slice(0, 5));
+    console.log('Today:', today.toISOString().split('T')[0]);
+    console.log('Seven days ago:', sevenDaysAgo.toISOString().split('T')[0]);
+    console.log('Thirty days ago:', thirtyDaysAgo.toISOString().split('T')[0]);
+    
+    // Helper function to check if habit is completed (handles both data formats and progress habits)
+    const isHabitCompleted = (dateStr, habitIdx, habit) => {
+      let isCompleted = false;
+      let meetsTarget = false;
+      
+      if (Array.isArray(completions[dateStr])) {
+        isCompleted = completions[dateStr][habitIdx];
+        if (habit.trackingType === 'progress' && isCompleted) {
+          const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+          const target = parseFloat(habit.target) || 1;
+          meetsTarget = progress >= target;
+        } else {
+          meetsTarget = isCompleted;
+        }
+      } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+        isCompleted = completions[dateStr][habitIdx] && completions[dateStr][habitIdx].completed;
+        if (habit.trackingType === 'progress' && isCompleted) {
+          const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+          const target = parseFloat(habit.target) || 1;
+          meetsTarget = progress >= target;
+        } else {
+          meetsTarget = isCompleted;
+        }
+      }
+      
+      return habit.trackingType === 'progress' ? meetsTarget : isCompleted;
+    };
+    
     // Helper function to format date consistently
     const formatDateForMetrics = (date) => {
       const year = date.getFullYear();
@@ -1367,6 +1452,10 @@ function App() {
     // 6. Gaps (missed scheduled days in last 7 days)
     let missedDays = 0;
     let scheduledDays = 0;
+    
+    // Track unique scheduled days to avoid double counting
+    const scheduledDaysSet = new Set();
+    const missedDaysSet = new Set();
 
     habits.forEach((habit, idx) => {
       // Calculate for each habit
@@ -1392,13 +1481,8 @@ function App() {
         }
         
         if (isScheduled) {
-          // Check if completed
-          let isCompleted = false;
-          if (Array.isArray(completions[dateStr])) {
-            isCompleted = completions[dateStr][idx];
-          } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-            isCompleted = completions[dateStr][idx] && completions[dateStr][idx].completed;
-          }
+          // Check if completed using helper function
+          const isCompleted = isHabitCompleted(dateStr, idx, habit);
           
           // Count for 7 days
           if (currentDate >= sevenDaysAgo) {
@@ -1416,10 +1500,12 @@ function App() {
           habitConsistencyDays++;
           if (isCompleted) habitConsistency++;
           
-          // Count for gaps (last 7 days)
+          // Count for gaps (last 7 days) - track unique days
           if (currentDate >= sevenDaysAgo) {
-            scheduledDays++;
-            if (!isCompleted) missedDays++;
+            scheduledDaysSet.add(dateStr);
+            if (!isCompleted) {
+              missedDaysSet.add(dateStr);
+            }
           }
         }
         
@@ -1441,9 +1527,55 @@ function App() {
     });
     
     // Calculate rates
-    const sevenDayRate = sevenDayTotal > 0 ? Math.round((sevenDayCompletions / sevenDayTotal) * 100) : 0;
-    const thirtyDayRate = thirtyDayTotal > 0 ? Math.round((thirtyDayCompletions / thirtyDayTotal) * 100) : 0;
-    const consistencyRate = habitCount > 0 ? Math.round(totalConsistency / habitCount) : 0;
+    const sevenDayRate = sevenDayTotal > 0 ? parseFloat(((sevenDayCompletions / sevenDayTotal) * 100).toFixed(1)) : 0;
+    const thirtyDayRate = thirtyDayTotal > 0 ? parseFloat(((thirtyDayCompletions / thirtyDayTotal) * 100).toFixed(1)) : 0;
+    
+    // Calculate gaps (unique missed days)
+    scheduledDays = scheduledDaysSet.size;
+    missedDays = missedDaysSet.size;
+    
+    // Calculate consistency as average of individual habit completion rates over the last 30 days
+    let consistencyTotal = 0;
+    let consistencyCount = 0;
+    
+    habits.forEach((habit, idx) => {
+      let habitThirtyDayCompletions = 0;
+      let habitThirtyDayTotal = 0;
+      
+      let currentDate = new Date(thirtyDaysAgo);
+      while (currentDate <= today) {
+        const dateStr = formatDateForMetrics(currentDate);
+        const dayOfWeek = currentDate.getDay();
+        
+        // Determine if this day should have the habit scheduled
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
+          habitThirtyDayTotal++;
+          
+          // Check if completed using helper function
+          const isCompleted = isHabitCompleted(dateStr, idx, habit);
+          
+          if (isCompleted) habitThirtyDayCompletions++;
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Calculate individual habit rate for consistency
+      if (habitThirtyDayTotal > 0) {
+        const habitRate = (habitThirtyDayCompletions / habitThirtyDayTotal) * 100;
+        consistencyTotal += habitRate;
+        consistencyCount++;
+      }
+    });
+    
+    const consistencyRate = consistencyCount > 0 ? parseFloat((consistencyTotal / consistencyCount).toFixed(1)) : 0;
     
     // Check if there are at least 3 days of logs for at least 1 habit in the last 7 days
     let hasMinimumActivity = false;
@@ -1473,13 +1605,65 @@ function App() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // Show tile if there are at least 3 total logs OR at least 2 different days with logs
-    hasMinimumActivity = totalLogsInLast7Days >= 3 || daysWithLogs.size >= 2;
+    // Show tile if there is at least 1 habit and more than 3 logs across all habits (in last 30 days for testing)
+    const totalLogsInLast30DaysForActivity = Object.keys(completions).reduce((total, dateStr) => {
+      const logDate = new Date(dateStr);
+      if (logDate >= thirtyDaysAgo && logDate <= today) {
+        if (Array.isArray(completions[dateStr])) {
+          return total + completions[dateStr].filter(Boolean).length;
+        } else if (typeof completions[dateStr] === 'object') {
+          return total + Object.values(completions[dateStr]).filter(logData => logData && logData.completed).length;
+        }
+      }
+      return total;
+    }, 0);
     
-    // Calculate momentum (simplified - using weekly stats)
-    thisWeekRate = weeklyStats.length > 0 ? Math.round(weeklyStats.reduce((sum, stat) => sum + stat.percent, 0) / weeklyStats.length) : 0;
-    // For last week, we'd need to calculate it, but for now using a simplified approach
-    lastWeekRate = Math.max(0, thisWeekRate - Math.floor(Math.random() * 20)); // Placeholder
+    hasMinimumActivity = habits.length >= 1 && totalLogsInLast30DaysForActivity >= 3;
+    
+    // Debug logging for Last 7 Days
+    console.log('Last 7 Days Debug:');
+    console.log('- Total logs in last 7 days:', totalLogsInLast7Days);
+    console.log('- Total logs in last 30 days for activity:', totalLogsInLast30DaysForActivity);
+    console.log('- Days with logs:', daysWithLogs.size);
+    console.log('- Has minimum activity:', hasMinimumActivity);
+    console.log('- Seven day rate:', sevenDayRate);
+    
+    // Calculate momentum (this week vs last week)
+    // This week rate
+    thisWeekRate = sevenDayTotal > 0 ? parseFloat(((sevenDayCompletions / sevenDayTotal) * 100).toFixed(1)) : 0;
+    
+    // Last week rate (previous 7 days)
+    const fourteenDaysAgo = new Date(today);
+    fourteenDaysAgo.setDate(today.getDate() - 14);
+    
+    let lastWeekCompletions = 0;
+    let lastWeekTotal = 0;
+    
+    habits.forEach((habit, idx) => {
+      let currentDate = new Date(fourteenDaysAgo);
+      while (currentDate < sevenDaysAgo) {
+        const dateStr = formatDateForMetrics(currentDate);
+        const dayOfWeek = currentDate.getDay();
+        
+        // Determine if this day should have the habit scheduled
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
+          lastWeekTotal++;
+          const isCompleted = isHabitCompleted(dateStr, idx, habit);
+          if (isCompleted) lastWeekCompletions++;
+        }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+    
+    lastWeekRate = lastWeekTotal > 0 ? parseFloat(((lastWeekCompletions / lastWeekTotal) * 100).toFixed(1)) : 0;
     
     // Calculate total logs in last 30 days
     let totalLogsInLast30Days = 0;
@@ -1496,8 +1680,53 @@ function App() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    // Check if there's at least a week of data for momentum
-    const hasWeekOfData = daysWithLogs.size >= 7;
+    // Debug logging for 30 Days
+    console.log('30 Days Debug:');
+    console.log('- Total logs in last 30 days:', totalLogsInLast30Days);
+    console.log('- Thirty day rate:', thirtyDayRate);
+    console.log('- Consistency rate:', consistencyRate);
+    console.log('- Thirty day completions:', thirtyDayCompletions);
+    console.log('- Thirty day total:', thirtyDayTotal);
+    console.log('- Total consistency:', totalConsistency);
+    console.log('- Habit count:', habitCount);
+    
+    // Check if there's at least 1 habit and at least one log that was logged more than 7 days ago
+    let hasWeekOfData = false;
+    if (habits.length >= 1) {
+      // Check if there's any log older than 7 days
+      const eightDaysAgo = new Date(today);
+      eightDaysAgo.setDate(today.getDate() - 8);
+      
+      let hasOldLog = false;
+      let currentDate = new Date(eightDaysAgo);
+      while (currentDate < sevenDaysAgo) {
+        const dateStr = formatDateForMetrics(currentDate);
+        if (completions[dateStr]) {
+          if (Array.isArray(completions[dateStr])) {
+            const completedCount = completions[dateStr].filter(Boolean).length;
+            if (completedCount > 0) {
+              hasOldLog = true;
+              break;
+            }
+          } else if (typeof completions[dateStr] === 'object') {
+            const completedCount = Object.values(completions[dateStr]).filter(logData => logData && logData.completed).length;
+            if (completedCount > 0) {
+              hasOldLog = true;
+              break;
+            }
+          }
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      hasWeekOfData = hasOldLog;
+    }
+    
+    // Debug logging for Momentum
+    console.log('Momentum Debug:');
+    console.log('- Has week of data:', hasWeekOfData);
+    console.log('- This week rate:', thisWeekRate);
+    console.log('- Last week rate:', lastWeekRate);
+    console.log('- Momentum:', thisWeekRate - lastWeekRate);
     
     return {
       sevenDayRate,
@@ -1506,7 +1735,7 @@ function App() {
       bestStreakValue,
       needsImprovementHabit,
       consistencyRate,
-      momentum: thisWeekRate - lastWeekRate,
+      momentum: parseFloat((thisWeekRate - lastWeekRate).toFixed(1)),
       missedDays,
       scheduledDays,
       hasMinimumActivity,
@@ -1580,7 +1809,7 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
                   Log 3+ habits this week to see your progress
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
@@ -1593,7 +1822,7 @@ function App() {
               onClick={() => setSevenDayInfoOpen(true)} 
               sx={{ 
                 position: 'absolute', 
-                bottom: 8, 
+                top: 8, 
                 right: 8, 
                 p: 0.5,
                 backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1636,7 +1865,7 @@ function App() {
                 }}>
                   {dashboardMetrics.thirtyDayRate}%
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
                   habits completed in last 30 days
                 </Typography>
               </>
@@ -1664,7 +1893,7 @@ function App() {
             onClick={() => setThirtyDayInfoOpen(true)} 
             sx={{ 
               position: 'absolute', 
-              bottom: 8, 
+              top: 8, 
               right: 8, 
               p: 0.5,
               backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1705,7 +1934,7 @@ function App() {
                     <TrendingDownIcon sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.6rem' }, color: '#e74c3c' }} />
                   }
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
                   {dashboardMetrics.momentum >= 0 ? 'Up this week!' : 'Down this week'}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
@@ -1722,7 +1951,7 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
                   Log data at least for a week to see your momentum
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
@@ -1735,7 +1964,7 @@ function App() {
             onClick={() => setMomentumInfoOpen(true)} 
             sx={{ 
               position: 'absolute', 
-              bottom: 8, 
+              top: 8, 
               right: 8, 
               p: 0.5,
               backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1778,7 +2007,7 @@ function App() {
                 }}>
                   {dashboardMetrics.consistencyRate}%
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
                   Your average consistency this month
                 </Typography>
               </>
@@ -1806,7 +2035,7 @@ function App() {
             onClick={() => setConsistencyInfoOpen(true)} 
             sx={{ 
               position: 'absolute', 
-              bottom: 8, 
+              top: 8, 
               right: 8, 
               p: 0.5,
               backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1841,17 +2070,17 @@ function App() {
             <Box sx={{ mb: 1 }}>
               {dashboardMetrics.bestStreakValue > 0 ? (
                 <>
-                  <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1.5 }}>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '1.6rem', sm: '1.8rem' }, mb: 1.5, fontWeight: 'bold' }}>
                     🏆 {dashboardMetrics.bestStreakHabit}—{dashboardMetrics.bestStreakValue} days!
                   </Typography>
                   {dashboardMetrics.needsImprovementHabit && (
-                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                       ⚡ Needs Improvement: {dashboardMetrics.needsImprovementHabit}
                     </Typography>
                   )}
                 </>
               ) : (
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 0.5 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 0.5 }}>
                   No streaks to show
                 </Typography>
               )}
@@ -1862,7 +2091,7 @@ function App() {
             onClick={() => setBestNeedsInfoOpen(true)} 
             sx={{ 
               position: 'absolute', 
-              bottom: 8, 
+              top: 8, 
               right: 8, 
               p: 0.5,
               backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1894,35 +2123,82 @@ function App() {
             <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 600, mb: 1 }}>
               Gaps
             </Typography>
-            <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1 }}>
-              {dashboardMetrics.missedDays}
-              {dashboardMetrics.missedDays > 20 ? ' 😢😢😢' : 
-               dashboardMetrics.missedDays > 10 ? ' 😢😢' : 
-               dashboardMetrics.missedDays > 2 ? ' 😢' : ''}
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
-              Missed logs in the last 7 days
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
-              {dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 'Try to close the gap next week!'}
-            </Typography>
+            {habits.length === 0 ? (
+              <>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#95a5a6', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1 }}>
+                  —
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                  Add your habit to see updates here
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+                  Start building your habits
+                </Typography>
+              </>
+            ) : dashboardMetrics.scheduledDays === 0 ? (
+              <>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#95a5a6', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1 }}>
+                  —
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                  No logs in the last 7 days
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+                  Start logging your habits
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '2.16rem', sm: '2.7rem', md: '3.24rem' }, mb: 1 }}>
+                  {dashboardMetrics.missedDays}
+                  {dashboardMetrics.missedDays > 20 ? ' 😢😢😢' : 
+                   dashboardMetrics.missedDays > 10 ? ' 😢😢' : 
+                   dashboardMetrics.missedDays > 2 ? ' 😢' : ''}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                  Missed logs in the last 7 days
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+                  {dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 'Try to close the gap next week!'}
+                </Typography>
+              </>
+            )}
           </CardContent>
           <IconButton 
             onClick={() => setGapsInfoOpen(true)} 
             sx={{ 
               position: 'absolute', 
-              bottom: 8, 
+              top: 8, 
               right: 8, 
               p: 0.5,
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: 'rgba(255,255,255,0.2)',
               '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.2)'
+                backgroundColor: 'rgba(255,255,255,0.3)'
               }
             }}
           >
             <InfoOutlinedIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: 16, sm: 18 } }} />
           </IconButton>
         </Card>
+      </Box>
+      
+      {/* Log Generator Button */}
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={() => setLogGeneratorOpen(true)}
+          sx={{
+            borderColor: 'rgba(255,255,255,0.3)',
+            color: 'rgba(255,255,255,0.8)',
+            '&:hover': {
+              borderColor: 'rgba(255,255,255,0.5)',
+              backgroundColor: 'rgba(255,255,255,0.1)'
+            }
+          }}
+        >
+          Generate Test Logs
+        </Button>
       </Box>
     </Box>
   );
@@ -1942,33 +2218,14 @@ function App() {
         overflowX: 'hidden',
         pt: { xs: 6, sm: 5, md: 5 } // Increased top padding
       }}>
-        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 4, sm: 2 } }}>
+        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 4, sm: 2 }, backgroundImage: 'none' }}>
           <Toolbar sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
-            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', mb: 1.25 }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Box component="img" src="/icon.svg" alt="HabiTrack icon" sx={{ height: 36, mr: 1 }} />
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                   HabiTrack
                 </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <IconButton 
-                  color="secondary" 
-                  size="small" 
-                  onClick={toggleDarkMode}
-                  sx={{ 
-                    p: 1,
-                    mr: 1,
-                    border: '1px solid',
-                    borderColor: 'secondary.main',
-                    '&:hover': {
-                      backgroundColor: 'secondary.light',
-                      color: 'secondary.contrastText'
-                    }
-                  }}
-                >
-                  {darkMode ? <Brightness7Icon sx={{ fontSize: 20 }} /> : <Brightness4Icon sx={{ fontSize: 20 }} />}
-                </IconButton>
               </Box>
             </Box>
             <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500, lineHeight: 1.2, pl: 0 }}>
@@ -1978,7 +2235,7 @@ function App() {
         </AppBar>
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', backgroundColor: 'background.paper', backgroundImage: 'none' }}>
           <Tabs 
             value={currentTab} 
             onChange={(e, newValue) => setCurrentTab(newValue)}
@@ -2145,8 +2402,8 @@ function App() {
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>Last 30 Days</Typography>
         <Typography variant="body2" color="secondary" sx={{ fontSize: '0.8rem' }}>
           {habit.trackingType === "progress" 
-            ? `${monthlyStats[idx]?.progress || 0}/${monthlyStats[idx]?.target || 0} ${habit.units || 'units'} (${monthlyStats[idx]?.percent || 0}%)`
-            : `${monthlyStats[idx]?.percent || 0}%`
+            ? `${monthlyStats[idx]?.progress || 0}/${monthlyStats[idx]?.target || 0} ${habit.units || 'units'} (${parseFloat((monthlyStats[idx]?.percent || 0).toFixed(1))}%)`
+            : `${parseFloat((monthlyStats[idx]?.percent || 0).toFixed(1))}%`
           }
         </Typography>
       </Box>
@@ -3376,7 +3633,16 @@ function App() {
             </Button>
           </DialogActions>
         </Dialog>
-        
+
+        {/* Log Generator */}
+        {logGeneratorOpen && (
+          <LogGenerator
+            habits={habits}
+            completions={completions}
+            setCompletions={setCompletions}
+            onClose={() => setLogGeneratorOpen(false)}
+          />
+        )}
 
       </Box>
     </ThemeProvider>

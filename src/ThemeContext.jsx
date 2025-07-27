@@ -12,29 +12,19 @@ try {
 }
 
 export function ThemeProvider({ children }) {
-  const [darkMode, setDarkMode] = useState(() => {
-    // Check localStorage for saved preference, default to dark mode
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : true; // Default to dark mode
-  });
+  const darkMode = true; // Always dark mode
 
-  // Save theme preference to localStorage
+  // Update Android system bar style if bridge is available
   useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-    // Update Android system bar style if bridge is available
     if (SystemBar && SystemBar.setSystemBarStyle) {
-      SystemBar.setSystemBarStyle({ mode: darkMode ? 'dark' : 'light' });
+      SystemBar.setSystemBarStyle({ mode: 'dark' });
     }
-  }, [darkMode]);
+  }, []);
 
-  const toggleDarkMode = () => {
-    setDarkMode(prev => !prev);
-  };
-
-  // Create theme based on dark mode state
+  // Create dark theme
   const theme = createTheme({
     palette: {
-      mode: darkMode ? 'dark' : 'light',
+      mode: 'dark',
       primary: {
         main: '#2196f3',
       },
@@ -42,12 +32,12 @@ export function ThemeProvider({ children }) {
         main: '#ff9800',
       },
       background: {
-        default: darkMode ? '#121212' : '#f5f5f5',
-        paper: darkMode ? '#1e1e1e' : '#ffffff',
+        default: '#121212',
+        paper: '#1e1e1e',
       },
       text: {
-        primary: darkMode ? '#ffffff' : '#000000',
-        secondary: darkMode ? '#b0b0b0' : '#666666',
+        primary: '#ffffff',
+        secondary: '#b0b0b0',
       },
     },
     components: {
@@ -70,7 +60,6 @@ export function ThemeProvider({ children }) {
 
   const value = {
     darkMode,
-    toggleDarkMode,
     theme,
   };
 
