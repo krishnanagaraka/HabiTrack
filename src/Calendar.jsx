@@ -32,7 +32,13 @@ function formatDate(year, month, day) {
 
 const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
   const theme = useTheme();
-  const today = new Date();
+  
+  // Force local date to avoid timezone issues
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+
+  
   const [current, setCurrent] = useState({
     year: today.getFullYear(),
     month: today.getMonth(),
