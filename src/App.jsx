@@ -51,7 +51,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Calendar from './Calendar';
 import HabitCalendar from './HabitCalendar';
 import { useTheme } from './useTheme';
-import LogGenerator from './components/LogGenerator';
+
 // Test data functions moved inline
 import notificationService from './notificationService';
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -59,6 +59,12 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 
 // Custom hook for keyboard handling on mobile
 const useKeyboardHandler = () => {
@@ -126,7 +132,7 @@ const useKeyboardHandler = () => {
 function App() {
   
   // All hooks must be called at the top, before any conditional returns
-  const { darkMode, theme } = useTheme();
+  const { darkMode, theme, toggleDarkMode } = useTheme();
   const { isKeyboardVisible, dialogRef } = useKeyboardHandler();
   const [habits, setHabits] = useState(() => {
     const saved = localStorage.getItem('habits');
@@ -189,8 +195,9 @@ function App() {
   });
   const [selectedMilestoneIndex, setSelectedMilestoneIndex] = useState(0);
   const [gapsInfoOpen, setGapsInfoOpen] = useState(false);
-  const [logGeneratorOpen, setLogGeneratorOpen] = useState(false);
+
   const [onboardingOpen, setOnboardingOpen] = useState(() => !localStorage.getItem('onboardingComplete'));
+  const [onboardingStep, setOnboardingStep] = useState(1);
   const [editLog, setEditLog] = useState(null); // Track if editing a log
   const [logError, setLogError] = useState('');
   const [habitError, setHabitError] = useState('');
@@ -488,9 +495,9 @@ function App() {
         });
       }
       
-          if (cleanedCount > 0) {
+      if (cleanedCount > 0) {
       // Cleaned up old log entries
-    }
+      }
       
       return newCompletions;
     });
@@ -544,9 +551,9 @@ function App() {
         }
       });
       
-          if (cleanedCount > 0) {
+      if (cleanedCount > 0) {
       // Cleaned up orphaned log entries
-    }
+      }
       
       return newCompletions;
     });
@@ -611,7 +618,7 @@ function App() {
     if (habits.length > 0) {
       const today = new Date();
       const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(today.getDate() - 7);
+      sevenDaysAgo.setDate(today.getDate() - 6);
       sevenDaysAgo.setHours(0, 0, 0, 0);
       
       const currentWeekKey = sevenDaysAgo.toISOString().split('T')[0];
@@ -684,7 +691,7 @@ function App() {
     const today = new Date();
     // Calculate last 7 days (7 days ago from today)
     const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
+          sevenDaysAgo.setDate(today.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
     
     const weeklyStats = habits.map((habit, idx) => {
@@ -1083,7 +1090,7 @@ function App() {
     weeklyBestWorst,
     monthlyBestWorst
   } = calculateMetrics();
-
+  
   // Find best and worst streaks and their habits
   const bestStreakValue = streaks.length > 0 ? Math.max(...streaks) : 0;
   const bestStreakIndex = streaks.findIndex(s => s === bestStreakValue);
@@ -1490,6 +1497,21 @@ function App() {
   const handleOnboardingClose = () => {
     localStorage.setItem('onboardingComplete', 'true');
     setOnboardingOpen(false);
+    setOnboardingStep(1); // Reset to first step for next time
+  };
+
+  const handleOnboardingNext = () => {
+    setOnboardingStep(2);
+  };
+
+  const handleOnboardingPrev = () => {
+    setOnboardingStep(1);
+  };
+
+  const handleSkipOnboarding = () => {
+    localStorage.setItem('onboardingComplete', 'true');
+    setOnboardingOpen(false);
+    setOnboardingStep(1); // Reset to first step for next time
   };
 
   // Calendar carousel functions
@@ -1610,42 +1632,36 @@ function App() {
       const yesterday = new Date(today);
       yesterday.setDate(today.getDate() - 1);
       const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(today.getDate() - 6); // 6 days back to get 7 days total including today
+      sevenDaysAgo.setDate(today.getDate() - 6); // 6 days back to get 7 days total including today (July 23-29)
       const thirtyDaysAgo = new Date(today);
       thirtyDaysAgo.setDate(today.getDate() - 29); // 29 days back to get 30 days total including today
       
       // Helper function to check if habit is completed
-      const isHabitCompleted = (dateStr, habitIdx, habit) => {
-        let isCompleted = false;
-        let meetsTarget = false;
-        
-        if (Array.isArray(completions[dateStr])) {
-          isCompleted = completions[dateStr][habitIdx];
-          if (habit.trackingType === 'progress' && isCompleted) {
-            const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
-            const target = parseFloat(habit.target) || 1;
-            meetsTarget = progress >= target;
-          } else {
-            meetsTarget = isCompleted;
-          }
-        } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
-          isCompleted = completions[dateStr][habitIdx] && completions[dateStr][habitIdx].completed;
-          if (habit.trackingType === 'progress' && isCompleted) {
-            const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
-            const target = parseFloat(habit.target) || 1;
-            meetsTarget = progress >= target;
-          } else {
-            meetsTarget = isCompleted;
-          }
+    const isHabitCompleted = (dateStr, habitIdx, habit) => {
+      let isCompleted = false;
+      let meetsTarget = false;
+      
+      if (Array.isArray(completions[dateStr])) {
+        isCompleted = completions[dateStr][habitIdx];
+        if (habit.trackingType === 'progress' && isCompleted) {
+          const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+          const target = parseFloat(habit.target) || 1;
+          meetsTarget = progress >= target;
+        } else {
+          meetsTarget = isCompleted;
         }
-        
+      } else if (completions[dateStr] && typeof completions[dateStr] === 'object') {
+        isCompleted = completions[dateStr][habitIdx] && completions[dateStr][habitIdx].completed;
+        if (habit.trackingType === 'progress' && isCompleted) {
+          const progress = parseFloat(completions[dateStr][habitIdx]?.progress) || 0;
+          const target = parseFloat(habit.target) || 1;
+          meetsTarget = progress >= target;
+        } else {
+          meetsTarget = isCompleted;
+        }
+      }
+      
         const result = habit.trackingType === 'progress' ? meetsTarget : isCompleted;
-        
-        // Debug logging for completion detection
-        console.log(`Completion Check - Date: ${dateStr}, Habit: ${habit.title} (${habitIdx}), Result: ${result}, Raw:`, JSON.stringify(completions[dateStr]));
-        if (completions[dateStr] && completions[dateStr][habitIdx]) {
-          console.log(`  - Habit data:`, JSON.stringify(completions[dateStr][habitIdx]));
-        }
         
         return result;
       };
@@ -1661,15 +1677,15 @@ function App() {
         }
         
         return isLogged;
-      };
-      
-      // Helper function to format date consistently
-      const formatDateForMetrics = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
+    };
+    
+    // Helper function to format date consistently
+    const formatDateForMetrics = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
       // Calculate total logs across all time (for new rule)
       let totalLogsAllTime = 0;
@@ -1691,30 +1707,30 @@ function App() {
       const hasMinimumActivity = habits.length >= 1 && totalLogsAllTime >= 1;
       
       // Calculate real metrics
-      let sevenDayCompletions = 0;
-      let sevenDayTotal = 0;
-      let thirtyDayCompletions = 0;
-      let thirtyDayTotal = 0;
+    let sevenDayCompletions = 0;
+    let sevenDayTotal = 0;
+    let thirtyDayCompletions = 0;
+    let thirtyDayTotal = 0;
       let totalLogsInLast30Days = 0;
-      let bestStreakValue = 0;
+    let bestStreakValue = 0;
       let bestStreakHabit = '';
       
       // Calculate 7-day and 30-day metrics
-      habits.forEach((habit, idx) => {
+    habits.forEach((habit, idx) => {
         // 7-day calculation
         let currentDate7 = new Date(sevenDaysAgo);
         while (currentDate7 <= today) {
           const dateStr = formatDateForMetrics(currentDate7);
           const dayOfWeek = currentDate7.getDay();
           
-          let isScheduled = false;
-          if (habit.frequency === 'daily') {
-            isScheduled = true;
-          } else if (habit.frequency === 'weekly') {
-            isScheduled = habit.weeklyDays.includes(dayOfWeek);
-          }
-          
-          if (isScheduled) {
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
             sevenDayTotal++;
             const isLogged = isHabitLogged(dateStr, idx, habit);
             if (isLogged) {
@@ -1725,23 +1741,23 @@ function App() {
           currentDate7.setDate(currentDate7.getDate() + 1);
         }
         
-        // 30-day calculation
+        // 30-day calculation - FIXED: Use same logic as 7-day
         let currentDate30 = new Date(thirtyDaysAgo);
         while (currentDate30 <= today) {
           const dateStr = formatDateForMetrics(currentDate30);
           const dayOfWeek = currentDate30.getDay();
           
-          let isScheduled = false;
-          if (habit.frequency === 'daily') {
-            isScheduled = true;
-          } else if (habit.frequency === 'weekly') {
-            isScheduled = habit.weeklyDays.includes(dayOfWeek);
-          }
-          
-          if (isScheduled) {
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
             thirtyDayTotal++;
-            const isCompleted = isHabitCompleted(dateStr, idx, habit);
-            if (isCompleted) {
+            const isLogged = isHabitLogged(dateStr, idx, habit);
+            if (isLogged) {
               thirtyDayCompletions++;
             }
           }
@@ -1760,15 +1776,15 @@ function App() {
           const dateStr = formatDateForMetrics(currentDateStreak);
           const dayOfWeek = currentDateStreak.getDay();
           
-          let isScheduled = false;
-          if (habit.frequency === 'daily') {
-            isScheduled = true;
-          } else if (habit.frequency === 'weekly') {
-            isScheduled = habit.weeklyDays.includes(dayOfWeek);
-          }
-          
-          if (isScheduled) {
-            const isCompleted = isHabitCompleted(dateStr, idx, habit);
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
+          const isCompleted = isHabitCompleted(dateStr, idx, habit);
             if (isCompleted) {
               currentStreak++;
               maxStreak = Math.max(maxStreak, currentStreak);
@@ -1803,25 +1819,12 @@ function App() {
       // Calculate rates
       const sevenDayRate = sevenDayTotal > 0 ? parseFloat(((sevenDayCompletions / sevenDayTotal) * 100).toFixed(1)) : 0;
       
-      // Calculate 30-day activity rate (days with any logs / total days)
-      let daysWithLogs = 0;
-      let currentDateActivity = new Date(thirtyDaysAgo);
-      while (currentDateActivity <= today) {
-        const dateStr = formatDateForMetrics(currentDateActivity);
-        if (completions[dateStr]) {
-          if (Array.isArray(completions[dateStr])) {
-            if (completions[dateStr].some(Boolean)) {
-              daysWithLogs++;
-            }
-          } else if (typeof completions[dateStr] === 'object') {
-            if (Object.values(completions[dateStr]).some(logData => logData && logData.completed)) {
-              daysWithLogs++;
-            }
-          }
-        }
-        currentDateActivity.setDate(currentDateActivity.getDate() + 1);
-      }
-      const thirtyDayRate = parseFloat(((daysWithLogs / 30) * 100).toFixed(1));
+
+      
+
+      
+      // Calculate 30-day rate using the same logic as 7-day
+      const thirtyDayRate = thirtyDayTotal > 0 ? parseFloat(((thirtyDayCompletions / thirtyDayTotal) * 100).toFixed(1)) : 0;
       
       // Calculate momentum (last 7 days vs previous 7 days)
       let momentum = 0;
@@ -1831,24 +1834,24 @@ function App() {
       let previousSevenDayTotal = 0;
       
       const fourteenDaysAgo = new Date(today);
-      fourteenDaysAgo.setDate(today.getDate() - 13); // 13 days back to get 7 days for previous period
+      fourteenDaysAgo.setDate(today.getDate() - 14); // 14 days back to get 7 days for previous period
       const sevenDaysAgoForPrev = new Date(today);
       sevenDaysAgoForPrev.setDate(today.getDate() - 7);
-      
-      habits.forEach((habit, idx) => {
+    
+    habits.forEach((habit, idx) => {
         let currentDatePrev = new Date(fourteenDaysAgo);
         while (currentDatePrev <= sevenDaysAgoForPrev) {
           const dateStr = formatDateForMetrics(currentDatePrev);
           const dayOfWeek = currentDatePrev.getDay();
           
-          let isScheduled = false;
-          if (habit.frequency === 'daily') {
-            isScheduled = true;
-          } else if (habit.frequency === 'weekly') {
-            isScheduled = habit.weeklyDays.includes(dayOfWeek);
-          }
-          
-          if (isScheduled) {
+        let isScheduled = false;
+        if (habit.frequency === 'daily') {
+          isScheduled = true;
+        } else if (habit.frequency === 'weekly') {
+          isScheduled = habit.weeklyDays.includes(dayOfWeek);
+        }
+        
+        if (isScheduled) {
             previousSevenDayTotal++;
             const isLogged = isHabitLogged(dateStr, idx, habit);
             if (isLogged) {
@@ -1865,12 +1868,14 @@ function App() {
       // Calculate momentum as difference between current 7-day rate and previous 7-day rate
       momentum = parseFloat((sevenDayRate - previousSevenDayRate).toFixed(1));
       
-      // Calculate missed days in last 7 days (simplified)
+      // Calculate gaps in last 7 days (days with no logs)
       let missedDays = 0;
       let scheduledDays = 0;
       
+
+      
       if (hasMinimumActivity) {
-        // For daily habits, count missed days in last 7 days
+        // Count days with no logs in last 7 days (including today)
         let currentDateGaps = new Date(sevenDaysAgo);
         
         for (let i = 0; i < 7; i++) {
@@ -1878,8 +1883,9 @@ function App() {
           const dayOfWeek = currentDateGaps.getDay();
           
           let dayHasScheduledHabit = false;
-          let dayHasCompletedHabit = false;
+          let dayHasAnyLog = false;
           
+          // Check if any habit was scheduled for this day
           habits.forEach((habit, idx) => {
             let isScheduled = false;
             if (habit.frequency === 'daily') {
@@ -1890,19 +1896,26 @@ function App() {
             
             if (isScheduled) {
               dayHasScheduledHabit = true;
-              const isLogged = isHabitLogged(dateStr, idx, habit);
-              if (isLogged) {
-                dayHasCompletedHabit = true;
-              }
             }
           });
           
+          // Check if there are any logs for this day (any habit, any progress)
+          if (completions[dateStr]) {
+            if (Array.isArray(completions[dateStr])) {
+              dayHasAnyLog = completions[dateStr].some(Boolean);
+            } else if (typeof completions[dateStr] === 'object') {
+              dayHasAnyLog = Object.values(completions[dateStr]).some(logData => logData && logData.completed);
+            }
+          }
+          
           if (dayHasScheduledHabit) {
             scheduledDays++;
-            if (!dayHasCompletedHabit) {
+            if (!dayHasAnyLog) {
               missedDays++;
             }
           }
+          
+
           
           currentDateGaps.setDate(currentDateGaps.getDate() + 1);
         }
@@ -1913,76 +1926,24 @@ function App() {
       const needsImprovementRate = 100;
       const consistencyRate = hasMinimumActivity ? 70 : 0;
       const hasWeekOfData = hasMinimumActivity;
-      
-      // DEBUG: Log all metrics and data for testing
-      console.log('=== DASHBOARD METRICS DEBUG ===');
-      console.log('Date Range:', JSON.stringify({
-        today: today.toISOString().split('T')[0],
-        yesterday: yesterday.toISOString().split('T')[0],
-        sevenDaysAgo: sevenDaysAgo.toISOString().split('T')[0],
-        thirtyDaysAgo: thirtyDaysAgo.toISOString().split('T')[0]
-      }));
-      
-      console.log('Habits:', JSON.stringify(habits.map(h => ({ title: h.title, frequency: h.frequency, weeklyDays: h.weeklyDays }))));
-      
-      console.log('All Completions:', JSON.stringify(Object.keys(completions).filter(key => key !== '_durations' && key !== '_feelings').sort()));
-      
-      console.log('7-Day Calculation:', JSON.stringify({
-        sevenDayCompletions,
-        sevenDayTotal,
-        sevenDayRate
-      }));
-      
-      console.log('30-Day Calculation:', JSON.stringify({
-        daysWithLogs,
-        thirtyDayRate
-      }));
-      
-      console.log('Momentum Calculation:', JSON.stringify({
-        momentum
-      }));
-      
-      console.log('Gaps Calculation:', JSON.stringify({
-        missedDays,
-        scheduledDays
-      }));
-      
-      console.log('Final Metrics:', JSON.stringify({
-        sevenDayRate,
-        thirtyDayRate,
-        momentum,
-        missedDays,
-        bestStreakValue,
-        bestStreakHabit,
-        totalLogsInLast30Days,
-        totalLogsAllTime,
-        hasMinimumActivity
-      }));
-      
-      console.log('hasMinimumActivity Debug:', {
-        habitsLength: habits.length,
-        totalLogsAllTime,
-        hasMinimumActivity
-      });
-      console.log('=== END DEBUG ===');
-      
-      return {
-        sevenDayRate,
-        thirtyDayRate,
-        bestStreakHabit,
-        bestStreakValue,
-        needsImprovementHabit,
+    
+    return {
+      sevenDayRate,
+      thirtyDayRate,
+      bestStreakHabit,
+      bestStreakValue,
+      needsImprovementHabit,
         needsImprovementRate,
-        consistencyRate,
+      consistencyRate,
         momentum,
-        missedDays,
-        scheduledDays,
-        hasMinimumActivity,
-        totalLogsInLast30Days,
+      missedDays,
+      scheduledDays,
+      hasMinimumActivity,
+      totalLogsInLast30Days,
         totalLogsAllTime,
-        hasWeekOfData,
-        recentMilestones: getRecentMilestones()
-      };
+      hasWeekOfData,
+      recentMilestones: getRecentMilestones()
+    };
     } catch (error) {
       console.error('Error calculating dashboard metrics:', error);
       // Return default values to prevent crash
@@ -2007,7 +1968,7 @@ function App() {
   };
 
 
-      const dashboardMetrics = calculateDashboardMetrics();
+  const dashboardMetrics = calculateDashboardMetrics();
 
   const renderDashboard = () => (
     <Box>
@@ -2017,8 +1978,9 @@ function App() {
         gridTemplateColumns: {
           xs: '1fr 1fr', // 2 columns on extra small screens (portrait phones)
           sm: '1fr 1fr 1fr', // 3 columns on small screens (landscape phones)
-          md: '1fr 1fr 1fr 1fr', // 4 columns on medium screens (tablets)
-          lg: '1fr 1fr 1fr 1fr 1fr 1fr' // 6 columns on large screens (desktop)
+          md: '1fr 1fr 1fr', // 3 columns on medium screens (tablets)
+          lg: '1fr 1fr 1fr 1fr', // 4 columns on large screens (10-inch tablet landscape)
+          xl: '1fr 1fr 1fr 1fr 1fr 1fr' // 6 columns on extra large screens (desktop)
         },
         gap: 2,
         mb: 3,
@@ -2028,7 +1990,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2060,21 +2022,16 @@ function App() {
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.85rem', sm: '0.95rem' }, fontStyle: 'italic' }}>
                   {(() => {
-                    console.log('Subtitle Debug - sevenDayRate:', dashboardMetrics.sevenDayRate);
-                    console.log('Subtitle Debug - Rate checks:', {
-                      '>= 90': dashboardMetrics.sevenDayRate >= 90,
-                      '>= 75': dashboardMetrics.sevenDayRate >= 75,
-                      '>= 50': dashboardMetrics.sevenDayRate >= 50
-                    });
-                    
-                    if (dashboardMetrics.sevenDayRate >= 90) {
+                    if (dashboardMetrics.sevenDayRate > 100) {
+                      return 'Amazing! You exceeded your goal! 🎉';
+                    } else if (dashboardMetrics.sevenDayRate >= 90) {
                       return 'Outstanding! Keep up the amazing work!';
                     } else if (dashboardMetrics.sevenDayRate >= 75) {
                       return 'Great job! You\'re crushing it!';
                     } else if (dashboardMetrics.sevenDayRate >= 50) {
-                      return 'Good progress! Try to hit 75%';
+                      return `Good progress! Try to hit ${Math.min(75, Math.ceil(dashboardMetrics.sevenDayRate + 25))}%`;
                     } else {
-                      return 'Try to hit 75%, you can do it';
+                      return `Try to hit ${Math.min(75, Math.ceil(dashboardMetrics.sevenDayRate + 25))}%, you can do it`;
                     }
                   })()}
                 </Typography>
@@ -2089,10 +2046,10 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem', md: '0.85rem' }, mb: 1, lineHeight: 1.3 }}>
                   Log 3+ habits this week to see your progress
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.7rem' }, fontStyle: 'italic' }}>
                   Start logging your habits
                 </Typography>
               </>
@@ -2119,7 +2076,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2159,10 +2116,10 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.8rem' }, mb: 1, lineHeight: 1.3 }}>
                   Log 10+ habits to see your progress
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.7rem' }, fontStyle: 'italic' }}>
                   Start logging your habits regularly
                 </Typography>
               </>
@@ -2190,7 +2147,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2225,8 +2182,9 @@ function App() {
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
                   {dashboardMetrics.momentum > 0 ? 'You\'re on a positive streak!' : 
                    dashboardMetrics.momentum < 0 ? 'Easy to recover and get back on track' : 
-                   dashboardMetrics.sevenDayRate < 75 ? 'Small improvements lead to big changes!' : 
-                   'Great job staying consistent!'}
+                   Math.abs(dashboardMetrics.momentum) === 0 && dashboardMetrics.sevenDayRate < 75 ? 'Time to improve your momentum!' : 
+                   Math.abs(dashboardMetrics.momentum) === 0 ? 'You\'re being consistent - great job!' : 
+                   'Small improvements lead to big changes!'}
                 </Typography>
               </>
             ) : (
@@ -2239,10 +2197,10 @@ function App() {
                 }}>
                   --
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.8rem' }, mb: 1, lineHeight: 1.3 }}>
                   Log data at least for a week to see your momentum
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.7rem', sm: '0.8rem' }, fontStyle: 'italic' }}>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.7rem' }, fontStyle: 'italic' }}>
                   Start logging your habits
                 </Typography>
               </>
@@ -2269,7 +2227,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2451,7 +2409,7 @@ function App() {
                 }}>
                   🎯
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.8rem', sm: '0.9rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.8rem' }, mb: 1, lineHeight: 1.3 }}>
                   Complete habits to unlock your first milestone
                 </Typography>
               </Box>
@@ -2464,7 +2422,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2520,7 +2478,7 @@ function App() {
         <Card sx={{ 
           minWidth: 0, 
           width: '100%', 
-          height: 180, 
+          height: { xs: 180, lg: 200 }, 
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between', 
@@ -2540,10 +2498,10 @@ function App() {
                 <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#95a5a6', fontSize: { xs: '1.62rem', sm: '2.025rem', md: '2.43rem' }, mb: 1 }}>
                   —
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.8rem' }, mb: 1, lineHeight: 1.3 }}>
                   Add your habit to see updates here
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.7rem' }, fontStyle: 'italic' }}>
                   Start building your habits
                 </Typography>
               </>
@@ -2561,17 +2519,20 @@ function App() {
               </>
             ) : (
               <>
-                <Typography variant="h3" sx={{ fontWeight: 'bold', color: '#e74c3c', fontSize: { xs: '1.62rem', sm: '2.025rem', md: '2.43rem' }, mb: 1 }}>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', color: dashboardMetrics.missedDays === 0 ? '#27ae60' : '#e74c3c', fontSize: { xs: '1.62rem', sm: '2.025rem', md: '2.43rem' }, mb: 1 }}>
                   {dashboardMetrics.missedDays}
-                  {dashboardMetrics.missedDays > 20 ? ' 😢😢😢' : 
+                  {dashboardMetrics.missedDays === 0 ? ' 🎉' : 
+                   dashboardMetrics.missedDays > 20 ? ' 😢😢😢' : 
                    dashboardMetrics.missedDays > 10 ? ' 😢😢' : 
                    dashboardMetrics.missedDays > 2 ? ' 😢' : ''}
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.9rem', sm: '1rem' }, mb: 1 }}>
-                  missed logs in the last 7 days
+                  {dashboardMetrics.missedDays === 0 ? 'perfect days in the last 7 days' : 'missed logs in the last 7 days'}
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8, fontSize: { xs: '0.75rem', sm: '0.85rem' }, fontStyle: 'italic' }}>
-                  {dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 'Try to close the gap next week!'}
+                  {dashboardMetrics.missedDays === 0 ? 'Amazing! You logged every scheduled day!' : 
+                   dashboardMetrics.missedDays <= 2 ? 'A small gap—easy to recover!' : 
+                   'Try to close the gap next week!'}
                 </Typography>
               </>
             )}
@@ -2596,21 +2557,7 @@ function App() {
       
       {/* Log Generator Button */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={() => setLogGeneratorOpen(true)}
-          sx={{
-            borderColor: 'rgba(255,255,255,0.3)',
-            color: 'rgba(255,255,255,0.8)',
-            '&:hover': {
-              borderColor: 'rgba(255,255,255,0.5)',
-              backgroundColor: 'rgba(255,255,255,0.1)'
-            }
-          }}
-        >
-          Generate Test Logs
-        </Button>
+
       </Box>
     </Box>
   );
@@ -2631,15 +2578,16 @@ function App() {
         overflowX: 'hidden',
         pt: { xs: 6, sm: 5, md: 5 } // Increased top padding
       }}>
-        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 4, sm: 2 }, backgroundImage: 'none' }}>
+        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 1, sm: 0.5 }, backgroundImage: 'none' }}>
           <Toolbar sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
-            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', mb: 1.25 }}>
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Box component="img" src="/icon.svg" alt="HabiTrack icon" sx={{ height: 36, mr: 1 }} />
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                   HabiTrack
                 </Typography>
               </Box>
+
             </Box>
             <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500, lineHeight: 1.2, pl: 0 }}>
               Build discipline. Track Habits. Change your life.
@@ -2721,7 +2669,7 @@ function App() {
               width: '100%', 
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center'
+              alignItems: 'stretch'
             }}>
 
               {habits.length > 0 ? (
@@ -2732,25 +2680,26 @@ function App() {
                 }}>
                   {/* Mobile: One row per tile, dynamic width */}
                   <Box sx={{ 
-                    display: { xs: 'flex', md: 'grid' },
-                    flexDirection: { xs: 'column', md: 'unset' },
-                    gridTemplateColumns: { md: 'repeat(auto-fill, minmax(300px, 1fr))' },
-                    gap: 2,
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr', // 1 column on phones (portrait)
+                      sm: '1fr 1fr', // 2 columns on phones (landscape)
+                      md: '1fr 1fr 1fr' // 3 columns on tablets
+                    },
+                    gap: { xs: 2, md: 1.5 },
                     width: '100%',
                     maxWidth: '100%',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    gridAutoRows: 'min-content'
                   }}>
                     {habits.map((habit, idx) => (
                               <Card key={idx} sx={{ 
-          width: { xs: '100%', md: 'auto' },
-          minWidth: { xs: 280, md: 300 },
-          maxWidth: { xs: '100%', md: 320 },
-          height: 158, // 75% of 210 (210 * 0.75 = 157.5, rounded to 158)
+          width: '100%',
+          minWidth: 0,
+          height: { xs: 158, md: 180 }, // Larger on tablets for better readability
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'space-between',
-          flexShrink: 0,
-          flexGrow: 0,
           boxShadow: 2,
           m: 0,
           p: 0,
@@ -2763,11 +2712,11 @@ function App() {
         }}
         onClick={() => handleEdit(idx)}
         >
-                          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', p: 1, pb: '6px !important' }}>
+                          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', p: { xs: 1, md: 1.5 }, pb: '6px !important' }}>
     <Box sx={{ mb: 0.3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem', lineHeight: 1.1, mr: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '1rem', md: '1.1rem' }, lineHeight: 1.1, mr: 1 }}>
             {habit.title}
           </Typography>
           <Chip 
@@ -2796,7 +2745,7 @@ function App() {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           maxWidth: '100%',
-          fontSize: '0.85rem',
+          fontSize: { xs: '0.85rem', md: '0.9rem' },
           lineHeight: 1.2
         }}
       >
@@ -2850,7 +2799,7 @@ function App() {
     <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.3 }}>
       <LocalFireDepartmentIcon sx={{ color: 'orange', mr: 0.5, fontSize: 16 }} />
       <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-        {streaks[idx] || 0} {(streaks[idx] || 0) === 1 ? 'day' : 'days'} streak
+        {streaks[idx] || 0} {(streaks[idx] || 0) === 1 ? 'day' : 'days'} current streak
       </Typography>
     </Box>
   </CardContent>
@@ -2983,15 +2932,17 @@ function App() {
                   overflow: 'auto',
                   borderRadius: 2,
                   boxShadow: 2,
-                  width: '100%'
+                  width: '100%',
+                  overflowX: 'hidden'
                 }}>
-                  <Table size="small" stickyHeader sx={{ minWidth: { xs: 300, sm: 400 } }}>
+                  <Table size="small" stickyHeader sx={{ width: '100%', tableLayout: 'fixed' }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 600, minWidth: { xs: 100, sm: 120 }, maxWidth: { xs: 120, sm: 150 } }}>Date</TableCell>
-                        <TableCell sx={{ fontWeight: 600, minWidth: { xs: 150, sm: 200 }, maxWidth: { xs: 180, sm: 250 } }}>Habit</TableCell>
-                        <TableCell sx={{ fontWeight: 600, minWidth: { xs: 80, sm: 100 }, maxWidth: { xs: 100, sm: 120 }, textAlign: 'center' }}>Progress</TableCell>
-                        <TableCell sx={{ fontWeight: 600, width: { xs: 80, sm: 100 }, textAlign: 'center' }}>Actions</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: { xs: '18%', sm: '16%' }, textAlign: 'left' }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: { xs: '32%', sm: '38%' }, textAlign: 'left' }}>Habit</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: { xs: '22%', sm: '24%' }, textAlign: 'center' }}>Progress</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: { xs: '18%', sm: '14%' }, textAlign: 'center' }}>Feeling</TableCell>
+                        <TableCell sx={{ fontWeight: 600, width: { xs: '10%', sm: '8%' }, textAlign: 'center' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -3004,7 +2955,7 @@ function App() {
                           if (logs.length === 0) {
                             return (
                               <TableRow>
-                                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                                   <Typography variant="body1" color="text.secondary">
                                     {habits.length === 0
                                       ? 'Create your habit and then log them to see logs here'
@@ -3038,10 +2989,12 @@ function App() {
                                 <TableCell sx={{ 
                                   fontWeight: 500, 
                                   color: 'text.primary',
-                                  maxWidth: { xs: 100, sm: 120 },
+                                  width: { xs: '18%', sm: '16%' },
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
+                                  whiteSpace: 'nowrap',
+                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  px: { xs: 0.5, sm: 1 }
                                 }}>
                                   {(() => {
                                     // Parse date string consistently to avoid timezone issues
@@ -3054,56 +3007,64 @@ function App() {
                                     });
                                   })()}
                                 </TableCell>
-                                <TableCell sx={{ maxWidth: { xs: 120, sm: 200 } }}>
-                                  <Box sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: { xs: 0.5, sm: 1 },
-                                    overflow: 'hidden'
+                                <TableCell sx={{ 
+                                  width: { xs: '32%', sm: '38%' },
+                                  overflow: 'hidden',
+                                  px: { xs: 0.5, sm: 1 }
                                   }}>
                                     <Typography variant="body2" sx={{ 
                                       fontWeight: 500,
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
                                       whiteSpace: 'nowrap',
-                                      flex: 1
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' }
                                     }}>
                                       {log.habit}
                                     </Typography>
-                                    <Chip 
-                                      label={habit?.frequency || 'daily'} 
-                                      size="small" 
-                                      variant="outlined"
-                                      sx={{ 
-                                        height: { xs: 16, sm: 20 }, 
-                                        fontSize: { xs: '0.6rem', sm: '0.7rem' },
-                                        minWidth: 'fit-content',
-                                        flexShrink: 0
-                                      }}
-                                    />
-                                  </Box>
                                 </TableCell>
 
-                                <TableCell align="center" sx={{ width: { xs: 80, sm: 100 } }}>
+                                <TableCell align="center" sx={{ 
+                                  width: { xs: '22%', sm: '24%' },
+                                  overflow: 'hidden',
+                                  px: { xs: 0.5, sm: 1 }
+                                }}>
                                   {habit?.trackingType === 'progress' && log.progress ? (
                                     <Typography variant="body2" sx={{ 
                                       fontWeight: 500,
                                       color: 'primary.main',
-                                      fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                                      fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
                                     }}>
                                       {parseFloat(log.progress).toFixed(1)} {habit.units || 'units'}
                                     </Typography>
                                   ) : (
                                     <Typography variant="body2" sx={{ 
                                       color: 'text.secondary',
-                                      fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                                      fontSize: { xs: '0.65rem', sm: '0.7rem' }
                                     }}>
                                       —
                                     </Typography>
                                   )}
                                 </TableCell>
 
-                                <TableCell align="center" sx={{ width: { xs: 80, sm: 100 } }}>
+                                <TableCell align="center" sx={{ 
+                                  width: { xs: '18%', sm: '14%' },
+                                  px: { xs: 0.5, sm: 1 }
+                                }}>
+                                  <Typography variant="body2" sx={{ 
+                                    fontSize: { xs: '1rem', sm: '1.2rem' },
+                                    lineHeight: 1
+                                  }}>
+                                    {log.feeling ? getFeelingEmoji(log.feeling) : '—'}
+                                  </Typography>
+                                </TableCell>
+
+                                <TableCell align="center" sx={{ 
+                                  width: { xs: '10%', sm: '8%' },
+                                  px: { xs: 0.25, sm: 0.5 }
+                                }}>
                                   <Box sx={{ 
                                     display: 'flex',
                                     gap: { xs: 0.25, sm: 0.5 },
@@ -3119,7 +3080,7 @@ function App() {
                                         }}
                                         sx={{ p: { xs: 0.25, sm: 0.5 }, color: 'error.main' }}
                                       >
-                                        <DeleteIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
+                                        <DeleteIcon sx={{ fontSize: { xs: 12, sm: 14 } }} />
                                       </IconButton>
                                     </Tooltip>
                                   </Box>
@@ -3129,7 +3090,7 @@ function App() {
                           })}
                           {/* Extra scroll space for FAB - now at least one full row height */}
                           <TableRow>
-                            <TableCell colSpan={4} sx={{ height: { xs: 70, sm: 80, md: 80 }, border: 0, p: 0, background: 'transparent' }} />
+                            <TableCell colSpan={5} sx={{ height: { xs: 70, sm: 80, md: 80 }, border: 0, p: 0, background: 'transparent' }} />
                           </TableRow>
                         </>
                       );
@@ -3137,7 +3098,7 @@ function App() {
                       console.error('Error rendering logs:', error);
                       return (
                         <TableRow>
-                          <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                          <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                             <Typography variant="body1" color="error">
                               Error loading logs. Please try refreshing the app.
                             </Typography>
@@ -3411,12 +3372,12 @@ function App() {
                       type: 'completion',
                       icon: <ChecklistIcon sx={{ fontSize: 32, color: habit.trackingType === 'completion' ? 'primary.main' : 'text.secondary' }} />,
                       title: 'Track Completion',
-                      desc: 'Simple yes/no tracking'
+                      desc: 'Simple yes/no tracking. E.g., Meditate daily, Gym Weekly M, W & F'
                     }, {
                       type: 'progress',
                       icon: <TrendingUpIcon sx={{ fontSize: 32, color: habit.trackingType === 'progress' ? 'primary.main' : 'text.secondary' }} />,
                       title: 'Track Progress',
-                      desc: 'Measure with units and targets'
+                      desc: 'Measure with units and targets. E.g., Read 50 Pages daily, Run 5 Miles Su & W'
                     }].map(opt => (
                       <Card
                         key={opt.type}
@@ -3741,11 +3702,11 @@ function App() {
           </DialogActions>
         </Dialog>
 
-        {/* Onboarding Modal */}
+        {/* Enhanced 2-Page Onboarding Modal */}
         <Dialog 
           open={onboardingOpen} 
           onClose={handleOnboardingClose} 
-          maxWidth="sm" 
+          maxWidth="md" 
           fullWidth
           PaperProps={{
             sx: {
@@ -3753,10 +3714,11 @@ function App() {
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               overflow: 'hidden',
-              maxHeight: '70vh'
+              maxHeight: '80vh'
             }
           }}
         >
+          {/* Header with step indicator */}
           <DialogTitle sx={{ 
             textAlign: 'center', 
             fontWeight: 'bold', 
@@ -3766,15 +3728,41 @@ function App() {
             backdropFilter: 'blur(10px)',
             borderBottom: '1px solid rgba(255,255,255,0.2)'
           }}>
-            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
               Welcome to HabiTrack!
             </Typography>
+            {/* Step indicator */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1 }}>
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                backgroundColor: onboardingStep === 1 ? 'white' : 'rgba(255,255,255,0.3)',
+                transition: 'all 0.3s ease'
+              }} />
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                backgroundColor: onboardingStep === 2 ? 'white' : 'rgba(255,255,255,0.3)',
+                transition: 'all 0.3s ease'
+              }} />
+            </Box>
           </DialogTitle>
+
           <DialogContent sx={{ p: 2, background: 'rgba(255,255,255,0.05)' }}>
-            <Typography variant="h6" sx={{ textAlign: 'center', mb: 2, fontWeight: 'bold', color: 'white' }}>
-              2 Steps to Build Lasting Discipline
+            {onboardingStep === 1 ? (
+              // Page 1: Create Your Habits
+              <Box>
+                <Typography variant="h5" sx={{ textAlign: 'center', mb: 2, mt: 1, fontWeight: 'bold', color: 'white' }}>
+                  Create Your Habits
             </Typography>
+                <Typography variant="body2" sx={{ textAlign: 'center', mb: 3, color: 'rgba(255,255,255,0.9)', fontSize: '1rem' }}>
+                  Set up habits with flexible tracking options
+                </Typography>
+                
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Feature 1: Tracking Types */}
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'flex-start', 
@@ -3803,18 +3791,22 @@ function App() {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                   border: '2px solid rgba(255,255,255,0.3)'
                 }}>
-                  <AddIcon sx={{ color: 'white', fontSize: 20 }} />
+                      <ChecklistIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Box>
-                <Box>
+                    <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
-                    Create Your Habits
+                        Choose Tracking Style
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem', mb: 0.5 }}>
+                        <strong>Progress Completion:</strong> Yes/No type habits (E.g., Daily Gym)
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
-                    Add habits you want to build. Set frequency, choose specific days, and add optional reminders.
+                        <strong>Progress Tracker:</strong> Measure progress (E.g., Run 5 Miles Weekly Su, W)
                   </Typography>
                 </Box>
               </Box>
               
+                  {/* Feature 2: Frequency & Scheduling */}
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'flex-start', 
@@ -3843,47 +3835,290 @@ function App() {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                   border: '2px solid rgba(255,255,255,0.3)'
                 }}>
-                  <TrendingUpIcon sx={{ color: 'white', fontSize: 20 }} />
+                      <CalendarTodayIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
+                        Flexible Scheduling
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
+                        Daily or Weekly on specific days
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Feature 3: Smart Reminders */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                      background: 'rgba(255,255,255,0.15)'
+                    }
+                  }}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      border: '2px solid rgba(255,255,255,0.3)'
+                    }}>
+                      <NotificationsIcon sx={{ color: 'white', fontSize: 20 }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
+                        Reminders
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
+                        Set notification so you don't forget
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            ) : (
+              // Page 2: Log Habits
                 <Box>
+                <Typography variant="h5" sx={{ textAlign: 'center', mb: 2, mt: 1, fontWeight: 'bold', color: 'white' }}>
+                  Log Your Habits
+                </Typography>
+                <Typography variant="body2" sx={{ textAlign: 'center', mb: 3, color: 'rgba(255,255,255,0.9)', fontSize: '1rem' }}>
+                  Track progress and build lasting discipline
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Feature 1: Quick Logging */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                      background: 'rgba(255,255,255,0.15)'
+                    }
+                  }}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      border: '2px solid rgba(255,255,255,0.3)'
+                    }}>
+                      <AssignmentIcon sx={{ color: 'white', fontSize: 20 }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
-                    Track & Build Discipline
+                        Quick & Easy Logging
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
-                    Mark habits complete daily, log your feelings, and watch your discipline score grow through consistency!
+                        Use Calendar to log habit completion or record progress
                   </Typography>
                 </Box>
               </Box>
+
+                  {/* Feature 2: Mood Tracking */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                      background: 'rgba(255,255,255,0.15)'
+                    }
+                  }}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      border: '2px solid rgba(255,255,255,0.3)'
+                    }}>
+                      <SentimentSatisfiedAltIcon sx={{ color: 'white', fontSize: 20 }} />
             </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
+                        Track Your Feelings
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
+                        Log your feelings for each session
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Feature 3: Progress Dashboard */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                      background: 'rgba(255,255,255,0.15)'
+                    }
+                  }}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      border: '2px solid rgba(255,255,255,0.3)'
+                    }}>
+                      <TrendingUpIcon sx={{ color: 'white', fontSize: 20 }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5, color: 'white' }}>
+                        Watch Progress Grow
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', lineHeight: 1.4, fontSize: '0.875rem' }}>
+                        Track progress and metrics
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            )}
           </DialogContent>
+
           <DialogActions sx={{ 
-            justifyContent: 'center', 
-            pb: 2, 
-            pt: 1,
+            justifyContent: 'space-between', 
+            pb: 3, 
+            pt: 2,
+            px: 3,
             background: 'rgba(255,255,255,0.05)',
             borderTop: '1px solid rgba(255,255,255,0.2)'
           }}>
+            {onboardingStep === 1 ? (
+              <>
             <Button 
-              onClick={handleOnboardingClose} 
+                  onClick={handleSkipOnboarding}
+                  sx={{
+                    color: 'rgba(255,255,255,0.7)',
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    height: 48,
+                    '&:hover': {
+                      color: 'white',
+                      background: 'rgba(255,255,255,0.1)'
+                    }
+                  }}
+                >
+                  Skip
+                </Button>
+                <Button 
+                  onClick={handleOnboardingNext} 
               variant="contained" 
               color="primary"
               sx={{ 
                 minWidth: 140,
-                py: 1,
-                px: 3,
+                    height: 48,
+                    px: 4,
                 fontSize: '1rem',
                 fontWeight: 'bold',
                 borderRadius: 2,
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
                 '&:hover': {
                   transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                      boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
                 }
               }}
             >
-              Get Started! 🚀
+                  Next Step →
             </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  onClick={handleOnboardingPrev} 
+                  variant="outlined"
+                  sx={{ 
+                    minWidth: 120,
+                    height: 48,
+                    px: 3,
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold',
+                    borderRadius: 2,
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    }
+                  }}
+                >
+                  ← Previous
+                </Button>
+                <Button 
+                  onClick={handleOnboardingClose} 
+                  variant="contained" 
+                  color="primary"
+                  sx={{ 
+                    minWidth: 140,
+                    height: 48,
+                    px: 4,
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold',
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
+                    }
+                  }}
+                >
+                  Get Started
+                </Button>
+              </>
+            )}
           </DialogActions>
         </Dialog>
 
@@ -4140,14 +4375,7 @@ function App() {
         </Dialog>
 
         {/* Log Generator */}
-        {logGeneratorOpen && (
-          <LogGenerator
-            habits={habits}
-            completions={completions}
-            setCompletions={setCompletions}
-            onClose={() => setLogGeneratorOpen(false)}
-          />
-        )}
+        
 
       </Box>
     </ThemeProvider>

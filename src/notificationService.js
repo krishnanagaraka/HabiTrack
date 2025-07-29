@@ -46,15 +46,13 @@ class NotificationService {
   // Schedule local notification using Capacitor
   async scheduleLocalNotification(habit) {
     try {
-      console.log('DEBUG: scheduleLocalNotification called with habit:', JSON.stringify(habit));
+  
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       
       // Check permissions first
       const permissionStatus = await LocalNotifications.checkPermissions();
-      console.log('DEBUG: Notification permission status:', JSON.stringify(permissionStatus));
       
       if (permissionStatus.display !== 'granted') {
-        console.log('DEBUG: Notification permission not granted');
         return;
       }
       
@@ -73,11 +71,9 @@ class NotificationService {
             }
           }
         };
-        console.log('DEBUG: Scheduling daily notification object:', JSON.stringify(notification));
         await LocalNotifications.schedule({
           notifications: [notification]
         });
-        console.log('DEBUG: Daily notification scheduled successfully');
       } else if (habit.frequency === 'weekly' && habit.weeklyDays.length > 0) {
         const notifications = habit.weeklyDays.map((dayIndex) => {
           const hour = parseInt(habit.startTime.split(':')[0]);
@@ -96,16 +92,12 @@ class NotificationService {
             }
           };
         });
-        console.log('DEBUG: Scheduling weekly notifications array:', JSON.stringify(notifications));
         await LocalNotifications.schedule({
           notifications
         });
-        console.log('DEBUG: Weekly notifications scheduled successfully');
-      } else {
-        console.log('DEBUG: Habit frequency not daily or weekly, or missing weeklyDays. No notification scheduled.');
       }
     } catch (error) {
-      console.log('DEBUG: Local notification scheduling error:', error);
+      console.log('Local notification scheduling error:', error);
     }
   }
 

@@ -12,16 +12,20 @@ try {
 }
 
 export function ThemeProvider({ children }) {
-  const darkMode = true; // Always dark mode
+  const [darkMode, setDarkMode] = useState(true);
+
+
 
   // Update Android system bar style if bridge is available
   useEffect(() => {
     if (SystemBar && SystemBar.setSystemBarStyle) {
-      SystemBar.setSystemBarStyle({ mode: 'dark' });
+      SystemBar.setSystemBarStyle({ mode: darkMode ? 'dark' : 'light' });
     }
-  }, []);
+  }, [darkMode]);
 
-  // Create dark theme
+
+
+  // Create theme based on darkMode
   const theme = createTheme({
     palette: {
       mode: 'dark',
@@ -52,6 +56,8 @@ export function ThemeProvider({ children }) {
         styleOverrides: {
           root: {
             backgroundImage: 'none',
+            backgroundColor: '#1e1e1e',
+            color: '#ffffff',
           },
         },
       },

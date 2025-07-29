@@ -64,7 +64,7 @@ const HabitForm = ({
           >
             <Typography variant="h6">Completion</Typography>
             <Typography variant="body2" color="text.secondary">
-              Mark as done/not done
+              Mark as done/not done. E.g., Meditate daily, Gym Weekly M, W & F
             </Typography>
           </Box>
         </Grid>
@@ -85,7 +85,7 @@ const HabitForm = ({
           >
             <Typography variant="h6">Progress</Typography>
             <Typography variant="body2" color="text.secondary">
-              Track numerical progress
+              Track numerical progress. E.g., Read 50 Pages daily, Run 5 Miles Su & W
             </Typography>
           </Box>
         </Grid>
