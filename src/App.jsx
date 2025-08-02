@@ -224,11 +224,25 @@ function App() {
 
   // Add this helper function at the top-level of App
   const isFutureDate = (dateStr) => {
-    const today = new Date();
+    // Force local date to avoid timezone issues
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     today.setHours(0,0,0,0);
-    const d = new Date(dateStr);
+    
+    // Parse the date string more carefully
+    const d = new Date(dateStr + 'T00:00:00');
     d.setHours(0,0,0,0);
-    return d > today;
+    
+    const isFuture = d > today;
+    console.log('isFutureDate check:', { 
+      dateStr, 
+      today: today.toISOString(), 
+      date: d.toISOString(), 
+      isFuture,
+      todayTime: today.getTime(),
+      dateTime: d.getTime()
+    });
+    return isFuture;
   };
 
 
@@ -694,6 +708,8 @@ function App() {
           sevenDaysAgo.setDate(today.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
     
+
+    
     const weeklyStats = habits.map((habit, idx) => {
       if (habit.trackingType === "progress") {
         // For progress-type habits, calculate based on actual progress values
@@ -760,7 +776,16 @@ function App() {
       } else {
         // For completion-type habits, use the existing logic
         const weekCompletions = Object.keys(completions).filter(date => {
-          const completionDate = new Date(date);
+          // Parse date more robustly
+          let completionDate;
+          try {
+            completionDate = new Date(date);
+            if (isNaN(completionDate.getTime())) return false;
+          } catch (e) {
+            return false;
+          }
+          
+          // Check if date is within the last 7 days (inclusive)
           if (completionDate < sevenDaysAgo || completionDate > today) return false;
           
           // Handle both old array format and new object format
@@ -795,6 +820,8 @@ function App() {
         } else {
           totalDays = 7;
         }
+        
+
         
         return {
           completed: weekCompletions,
@@ -864,7 +891,16 @@ function App() {
       } else {
         // For completion-type habits, use the existing logic
         const last30DaysCompletions = Object.keys(completions).filter(date => {
-          const completionDate = new Date(date);
+          // Parse date more robustly
+          let completionDate;
+          try {
+            completionDate = new Date(date);
+            if (isNaN(completionDate.getTime())) return false;
+          } catch (e) {
+            return false;
+          }
+          
+          // Check if date is within the last 30 days (inclusive)
           if (completionDate < thirtyDaysAgo || completionDate > today) return false;
           
           // Handle both old array format and new object format
@@ -978,6 +1014,13 @@ function App() {
         let isCompleted = false;
         let meetsTarget = false;
         
+        console.log(`isHabitCompleted check for ${habit.title} on ${dateStr}:`, {
+          completionsForDate: completions[dateStr],
+          habitIdx,
+          isArray: Array.isArray(completions[dateStr]),
+          isObject: completions[dateStr] && typeof completions[dateStr] === 'object'
+        });
+        
         if (Array.isArray(completions[dateStr])) {
           isCompleted = completions[dateStr][habitIdx];
           if (habit.trackingType === 'progress' && isCompleted) {
@@ -998,7 +1041,9 @@ function App() {
           }
         }
         
-        return habit.trackingType === 'progress' ? meetsTarget : isCompleted;
+        const result = habit.trackingType === 'progress' ? meetsTarget : isCompleted;
+        console.log(`isHabitCompleted result for ${habit.title} on ${dateStr}: ${result}`);
+        return result;
       };
       
       if (habit.frequency === 'daily') {
@@ -1008,7 +1053,7 @@ function App() {
           const dateStr = formatDateForStreak(currentDateDaily);
           const isCompleted = isHabitCompleted(dateStr, idx, habit);
           
-
+          console.log(`Streak check for ${habit.title} on ${dateStr}: ${isCompleted}`);
           
           if (isCompleted) {
             streak++;
@@ -1030,7 +1075,7 @@ function App() {
           if (selectedDays.includes(dayOfWeek)) {
             const isCompleted = isHabitCompleted(dateStr, idx, habit);
             
-
+            console.log(`Streak check for ${habit.title} on ${dateStr} (day ${dayOfWeek}): ${isCompleted}`);
             
             if (isCompleted) {
               streak++;
@@ -1155,8 +1200,16 @@ function App() {
   
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('=== HANDLE SUBMIT CALLED ===');
+    console.log('Habit data:', habit);
+    console.log('Edit index:', editIndex);
+    console.log('Current habits:', habits);
+    
     setHabitError('');
-    if (habit.title.trim() === "") return;
+    if (habit.title.trim() === "") {
+      console.log('Title is empty, returning');
+      return;
+    }
 
     // Duplicate name validation (case-insensitive, ignore self if editing)
     const normalizedTitle = habit.title.trim().toLowerCase();
@@ -1168,9 +1221,9 @@ function App() {
 
     const newHabit = {
       ...habit,
-      title: habit.title.trim(),
-      description: habit.description.trim(),
-      duration: habit.duration.trim(),
+      title: (habit.title || "").trim(),
+      description: (habit.description || "").trim(),
+      duration: (habit.duration || "").trim(),
       times: habit.frequency === 'weekly' ? habit.weeklyDays.length.toString() : (habit.times || "1"),
       startTime: habit.startTime || "",
       weeklyDays: habit.weeklyDays || [],
@@ -1180,9 +1233,11 @@ function App() {
     };
     
     if (editIndex !== null) {
+      console.log('Editing existing habit at index:', editIndex);
       setHabits(prev => prev.map((h, i) => i === editIndex ? newHabit : h));
       setEditIndex(null);
     } else {
+      console.log('Adding new habit');
       setHabits(prev => [...prev, newHabit]);
     }
     
@@ -1192,6 +1247,7 @@ function App() {
       scheduleHabitNotifications(newHabit);
     }
     
+    console.log('Resetting form and closing dialog');
     setHabit({
       title: "",
       description: "",
@@ -1205,6 +1261,7 @@ function App() {
       target: ""
     });
     setOpen(false);
+    console.log('Form submission complete');
   };
 
   const handleEdit = (index) => {
@@ -1479,6 +1536,12 @@ function App() {
   };
 
   const handleHabitCalendarLogEntry = (date, habitIndex, logEntry) => {
+    // Check for future dates
+    if (isFutureDate(date)) {
+      console.log('Blocking future date log entry:', date);
+      return;
+    }
+    
     setCompletions(prev => {
       const newCompletions = { ...prev };
       if (!newCompletions[date]) {
@@ -1538,6 +1601,11 @@ function App() {
   // Calendar date click handler
   const handleCalendarDateClick = (dateStr, habitIndex, existingEntry) => {
     if (selectedCalendarIndex === 0) return; // Don't allow clicks on "All Habits" calendar
+    
+    // Prevent clicking on future dates
+    if (isFutureDate(dateStr)) {
+      return;
+    }
     
     setCalendarLogEntry({
       habitIndex: habitIndex,
@@ -1717,49 +1785,57 @@ function App() {
       
       // Calculate 7-day and 30-day metrics
     habits.forEach((habit, idx) => {
-        // 7-day calculation
+        // 7-day calculation - Count scheduled days in denominator, all logs in numerator
         let currentDate7 = new Date(sevenDaysAgo);
         while (currentDate7 <= today) {
           const dateStr = formatDateForMetrics(currentDate7);
           const dayOfWeek = currentDate7.getDay();
           
-        let isScheduled = false;
-        if (habit.frequency === 'daily') {
-          isScheduled = true;
-        } else if (habit.frequency === 'weekly') {
-          isScheduled = habit.weeklyDays.includes(dayOfWeek);
-        }
-        
-        if (isScheduled) {
+          // Check if this day is scheduled for this habit
+          let isScheduled = false;
+          if (habit.frequency === 'daily') {
+            isScheduled = true;
+          } else if (habit.frequency === 'weekly') {
+            isScheduled = habit.weeklyDays.includes(dayOfWeek);
+          }
+          
+          // Count scheduled days in denominator
+          if (isScheduled) {
             sevenDayTotal++;
-            const isLogged = isHabitLogged(dateStr, idx, habit);
-            if (isLogged) {
-              sevenDayCompletions++;
-            }
+          }
+          
+          // Count all logs in numerator (regardless of scheduled date)
+          const isLogged = isHabitLogged(dateStr, idx, habit);
+          if (isLogged) {
+            sevenDayCompletions++;
           }
           
           currentDate7.setDate(currentDate7.getDate() + 1);
         }
         
-        // 30-day calculation - FIXED: Use same logic as 7-day
+        // 30-day calculation - Count scheduled days in denominator, all logs in numerator
         let currentDate30 = new Date(thirtyDaysAgo);
         while (currentDate30 <= today) {
           const dateStr = formatDateForMetrics(currentDate30);
           const dayOfWeek = currentDate30.getDay();
           
-        let isScheduled = false;
-        if (habit.frequency === 'daily') {
-          isScheduled = true;
-        } else if (habit.frequency === 'weekly') {
-          isScheduled = habit.weeklyDays.includes(dayOfWeek);
-        }
-        
-        if (isScheduled) {
+          // Check if this day is scheduled for this habit
+          let isScheduled = false;
+          if (habit.frequency === 'daily') {
+            isScheduled = true;
+          } else if (habit.frequency === 'weekly') {
+            isScheduled = habit.weeklyDays.includes(dayOfWeek);
+          }
+          
+          // Count scheduled days in denominator
+          if (isScheduled) {
             thirtyDayTotal++;
-            const isLogged = isHabitLogged(dateStr, idx, habit);
-            if (isLogged) {
-              thirtyDayCompletions++;
-            }
+          }
+          
+          // Count all logs in numerator (regardless of scheduled date)
+          const isLogged = isHabitLogged(dateStr, idx, habit);
+          if (isLogged) {
+            thirtyDayCompletions++;
           }
           
           currentDate30.setDate(currentDate30.getDate() + 1);
@@ -1970,22 +2046,245 @@ function App() {
 
   const dashboardMetrics = calculateDashboardMetrics();
 
+  // Suggested habits for first-time users
+  const suggestedHabits = [
+    {
+      title: "Gym",
+      description: "Build strength and fitness",
+      frequency: "weekly",
+      weeklyDays: [1, 3, 5], // Tuesday, Thursday, Saturday (form index system)
+      startTime: "18:00", // 6pm
+      trackingType: "completion",
+      icon: "🏋️"
+    },
+    {
+      title: "Meditate",
+      description: "Practice mindfulness daily",
+      frequency: "daily",
+      startTime: "09:00", // 9am
+      trackingType: "completion",
+      icon: "🧘"
+    },
+    {
+      title: "Run 5 Miles",
+      description: "Build endurance and cardio",
+      frequency: "weekly",
+      weeklyDays: [5], // Saturday (form index system)
+      startTime: "08:00", // 8am
+      trackingType: "progress",
+      target: "5",
+      units: "miles",
+      icon: "🏃"
+    }
+  ];
+
+  const handleSuggestedHabitClick = (suggestedHabit) => {
+    console.log('=== SUGGESTED HABIT CLICK ===');
+    console.log('Clicked habit:', suggestedHabit);
+    console.log('Current habits:', habits);
+    console.log('Current open state:', open);
+    console.log('Current editIndex:', editIndex);
+    
+    // Check if this habit already exists
+    const existingHabitIndex = habits.findIndex(h => h.title === suggestedHabit.title);
+    console.log('Existing habit index:', existingHabitIndex);
+    
+    if (existingHabitIndex !== -1) {
+      console.log('Habit exists, opening edit mode');
+      // If habit exists, edit it with the suggested configuration
+      const existingHabit = habits[existingHabitIndex];
+      const updatedHabit = {
+        ...existingHabit,
+        // Override with suggested habit configuration
+        description: suggestedHabit.description,
+        frequency: suggestedHabit.frequency,
+        weeklyDays: suggestedHabit.weeklyDays || [],
+        startTime: suggestedHabit.startTime,
+        trackingType: suggestedHabit.trackingType,
+        target: suggestedHabit.target || "",
+        units: suggestedHabit.units || "",
+        times: suggestedHabit.frequency === "weekly" ? (suggestedHabit.weeklyDays?.length || 1).toString() : "1"
+      };
+      console.log('Setting habit data for edit:', updatedHabit);
+      console.log('Weekly days for edit:', updatedHabit.weeklyDays);
+      console.log('Weekly days mapping for edit:', updatedHabit.weeklyDays.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]));
+      setHabit(updatedHabit);
+      setEditIndex(existingHabitIndex);
+      setHabitFormStep(2); // Go to second step for editing
+      setOpen(true);
+      console.log('Edit mode - dialog should open with suggested config');
+      return;
+    }
+
+    console.log('Creating new habit');
+    // Pre-fill the habit form with the suggested habit data
+    const newHabit = {
+      title: suggestedHabit.title,
+      description: suggestedHabit.description,
+      frequency: suggestedHabit.frequency,
+      weeklyDays: suggestedHabit.weeklyDays || [],
+      startTime: suggestedHabit.startTime,
+      trackingType: suggestedHabit.trackingType,
+      target: suggestedHabit.target || "",
+      units: suggestedHabit.units || "",
+      times: suggestedHabit.frequency === "weekly" ? (suggestedHabit.weeklyDays?.length || 1).toString() : "1"
+    };
+    
+    console.log('Setting habit data:', newHabit);
+    console.log('Weekly days:', newHabit.weeklyDays);
+    console.log('Weekly days mapping:', newHabit.weeklyDays.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]));
+    setHabit(newHabit);
+    setEditIndex(null);
+    setHabitFormStep(2); // Go directly to second step for new habits
+    setOpen(true);
+    console.log('New habit mode - dialog should open on step 2');
+  };
+
+  // Check if a suggested habit is already added
+  const isSuggestedHabitAdded = (suggestedHabit) => {
+    return habits.some(h => h.title === suggestedHabit.title);
+  };
+
   const renderDashboard = () => (
     <Box>
-      {/* New Dashboard Tiles */}
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: '1fr 1fr', // 2 columns on extra small screens (portrait phones)
-          sm: '1fr 1fr 1fr', // 3 columns on small screens (landscape phones)
-          md: '1fr 1fr 1fr', // 3 columns on medium screens (tablets)
-          lg: '1fr 1fr 1fr 1fr', // 4 columns on large screens (10-inch tablet landscape)
-          xl: '1fr 1fr 1fr 1fr 1fr 1fr' // 6 columns on extra large screens (desktop)
-        },
-        gap: 2,
-        mb: 3,
-        width: '100%'
-      }}>
+              {!dashboardMetrics.hasMinimumActivity ? (
+        // Show suggested habits for first-time users
+        <Box>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, fontSize: '1.1rem' }}>
+              Start creating habits and logging them to see insights/metrics
+            </Typography>
+            <Typography variant="h6" sx={{ color: 'text.secondary', mb: 3, fontSize: '0.9rem' }}>
+              Here are 3 common habits to track
+            </Typography>
+          </Box>
+          
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: '1fr 1fr',
+              md: '1fr 1fr 1fr'
+            },
+            gap: 2,
+            mb: 3,
+            width: '100%'
+          }}>
+            {suggestedHabits.map((suggestedHabit, index) => {
+              const isAdded = isSuggestedHabitAdded(suggestedHabit);
+              return (
+                <Card 
+                  key={index}
+                  sx={{ 
+                    cursor: isAdded ? 'default' : 'pointer',
+                    transition: 'all 0.3s ease',
+                    opacity: isAdded ? 0.6 : 1,
+                    '&:hover': !isAdded ? {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                    } : {},
+                    height: { xs: 140, sm: 150, md: 160 }
+                  }}
+                  onClick={() => {
+                    console.log('Tile clicked!');
+                    console.log('isAdded:', isAdded);
+                    if (!isAdded) {
+                      handleSuggestedHabitClick(suggestedHabit);
+                    } else {
+                      console.log('Tile is disabled, not calling handler');
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'stretch' }}>
+                    {/* Icon on the left */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      width: 70,
+                      height: 70,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.light',
+                      mr: 3,
+                      flexShrink: 0
+                    }}>
+                      <Typography variant="h3" sx={{ fontSize: '2.5rem' }}>
+                        {suggestedHabit.icon}
+                      </Typography>
+                    </Box>
+                    
+                    {/* Middle section - Title and Description */}
+                    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', mr: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, fontSize: '1.1rem', lineHeight: 1.2 }}>
+                        {suggestedHabit.title}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', lineHeight: 1.3 }}>
+                        {suggestedHabit.description}
+                      </Typography>
+                    </Box>
+                    
+                    {/* Right section - Frequency and Reminder */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'center',
+                      alignItems: 'flex-end',
+                      minWidth: 120,
+                      flexShrink: 0
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', mb: 0.5, textAlign: 'right' }}>
+                        {suggestedHabit.title === 'Gym' ? '3 times per week' :
+                         suggestedHabit.frequency === 'daily' ? 'Daily' : 
+                         `${suggestedHabit.weeklyDays?.length || 1} time${suggestedHabit.weeklyDays?.length > 1 ? 's' : ''} per week`}
+                      </Typography>
+                      {suggestedHabit.title === 'Gym' ? (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mb: 0.5, textAlign: 'right' }}>
+                          Tue, Thur, Sat
+                        </Typography>
+                      ) : suggestedHabit.title === 'Run 5 Miles' ? (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mb: 0.5, textAlign: 'right' }}>
+                          Saturday
+                        </Typography>
+                      ) : suggestedHabit.frequency === 'weekly' && suggestedHabit.weeklyDays && (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mb: 0.5, textAlign: 'right' }}>
+                          {suggestedHabit.weeklyDays.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]).join(', ')}
+                        </Typography>
+                      )}
+                      {suggestedHabit.trackingType === 'progress' && (
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mb: 0.5, textAlign: 'right' }}>
+                          Target: {suggestedHabit.target} {suggestedHabit.units}
+                        </Typography>
+                      )}
+                      <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, fontSize: '0.8rem', textAlign: 'right' }}>
+                        ⏰ {suggestedHabit.startTime}
+                      </Typography>
+                      {isAdded && (
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, fontSize: '0.75rem', mt: 0.5, textAlign: 'right' }}>
+                          ✓ Added
+                        </Typography>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </Box>
+        </Box>
+      ) : (
+        // Show regular metrics dashboard
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr 1fr', // 2 columns on extra small screens (portrait phones)
+            sm: '1fr 1fr 1fr', // 3 columns on small screens (landscape phones)
+            md: '1fr 1fr 1fr', // 3 columns on medium screens (tablets)
+            lg: '1fr 1fr 1fr 1fr', // 4 columns on large screens (10-inch tablet landscape)
+            xl: '1fr 1fr 1fr 1fr 1fr 1fr' // 6 columns on extra large screens (desktop)
+          },
+          gap: 2,
+          mb: 3,
+          width: '100%'
+        }}>
         {/* 1. Last 7 Days Completion Rate */}
         <Card sx={{ 
           minWidth: 0, 
@@ -2554,6 +2853,7 @@ function App() {
           </IconButton>
         </Card>
       </Box>
+      )}
       
       {/* Log Generator Button */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
@@ -2578,8 +2878,8 @@ function App() {
         overflowX: 'hidden',
         pt: { xs: 6, sm: 5, md: 5 } // Increased top padding
       }}>
-        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 1, sm: 0.5 }, backgroundImage: 'none' }}>
-          <Toolbar sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
+        <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 0.5, sm: 0.25 }, backgroundImage: 'none' }}>
+          <Toolbar sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, flexDirection: 'column', alignItems: 'flex-start', py: 0.5 }}>
             <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Box component="img" src="/assets/icon.png" alt="HabitForge icon" sx={{ height: 60, mr: 1.125, borderRadius: '12px' }} />

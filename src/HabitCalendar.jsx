@@ -31,7 +31,9 @@ function formatDate(year, month, day) {
 
 const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], onLogEntry, onDateClick }) => {
   const theme = useTheme();
-  const today = new Date();
+  // Force local date to avoid timezone issues
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const [current, setCurrent] = useState({
     year: today.getFullYear(),
     month: today.getMonth(),
@@ -77,7 +79,9 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], 
     if (!date) return;
     
     const dateStr = formatDate(current.year, current.month, date);
-    const today = new Date();
+    // Force local date to avoid timezone issues
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(dateStr);
     selectedDate.setHours(0, 0, 0, 0);
@@ -208,7 +212,11 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], 
                 isLogged = true;
               }
             }
-            const isToday = dateStr === new Date().toISOString().split('T')[0];
+            // Force local date to avoid timezone issues
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
+            const isToday = dateStr === todayStr;
             
             // Determine completion status based on habit type
             let isSuccessful = false;

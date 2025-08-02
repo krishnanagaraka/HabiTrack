@@ -31,13 +31,13 @@ function formatDate(year, month, day) {
 }
 
 const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
+  console.log('Calendar component received completions:', completions);
+  console.log('Calendar component received habits:', habits);
   const theme = useTheme();
   
   // Force local date to avoid timezone issues
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-
   
   const [current, setCurrent] = useState({
     year: today.getFullYear(),
@@ -156,16 +156,20 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
               const dayLogs = completions[dateStr];
               
               let completedCount = 0;
+              console.log('Checking date:', dateStr, 'dayLogs:', dayLogs);
               if (Array.isArray(dayLogs)) {
                 // Old format: array of booleans
                 completedCount = dayLogs.filter(Boolean).length;
+                console.log('Array format - completedCount:', completedCount);
               } else if (dayLogs && typeof dayLogs === 'object') {
                 // New format: object with habit indices as keys
-                completedCount = Object.values(dayLogs).filter(logData => 
+                const validLogs = Object.values(dayLogs).filter(logData => 
                   logData && 
                   logData.completed === true && 
                   (logData.feeling > 0 || logData.progress || logData.notes)
-                ).length;
+                );
+                completedCount = validLogs.length;
+                console.log('Object format - dayLogs keys:', Object.keys(dayLogs), 'validLogs:', validLogs, 'completedCount:', completedCount);
               }
               if (completedCount > 0) {
                 circle = (
