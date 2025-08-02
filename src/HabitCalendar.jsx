@@ -37,6 +37,8 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], 
     month: today.getMonth(),
   });
 
+
+
   const daysInMonth = getDaysInMonth(current.year, current.month);
   const firstDay = getFirstDayOfWeek(current.year, current.month);
 
@@ -191,7 +193,21 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], 
 
             const dateStr = formatDate(current.year, current.month, date);
             const entry = completions[dateStr]?.[habitIndex];
-            const isLogged = entry && (entry.completed || entry.feeling > 0 || entry.progress);
+            
+            // More robust check for logged entries - handle both old and new formats
+            let isLogged = false;
+            if (entry) {
+              if (typeof entry === 'object') {
+                // New format: object with properties
+                isLogged = entry.completed || entry.feeling > 0 || entry.progress || entry.notes;
+              } else if (typeof entry === 'boolean') {
+                // Old format: boolean
+                isLogged = entry === true;
+              } else if (entry) {
+                // Any truthy value
+                isLogged = true;
+              }
+            }
             const isToday = dateStr === new Date().toISOString().split('T')[0];
             
             // Determine completion status based on habit type
@@ -199,16 +215,23 @@ const HabitCalendar = ({ habit, habitIndex, completions = {}, weeklyStats = [], 
             let isBelowTarget = false;
             
             if (isLogged && habit) {
-              if (habit.trackingType === "progress" && entry.progress) {
-                // Progress-based habit: check if target was met
-                const target = parseFloat(habit.target) || 0;
-                const progress = parseFloat(entry.progress) || 0;
-                isSuccessful = progress >= target;
-                isBelowTarget = progress < target && progress > 0;
+              if (typeof entry === 'object') {
+                // New format: object with properties
+                if (habit.trackingType === "progress" && entry.progress) {
+                  // Progress-based habit: check if target was met
+                  const target = parseFloat(habit.target) || 0;
+                  const progress = parseFloat(entry.progress) || 0;
+                  isSuccessful = progress >= target;
+                  isBelowTarget = progress < target && progress > 0;
+                } else {
+                  // Completion-based habit: check if completed
+                  isSuccessful = entry.completed === true;
+                  isBelowTarget = !entry.completed && (entry.feeling > 0 || entry.notes);
+                }
               } else {
-                // Completion-based habit: check if completed
-                isSuccessful = entry.completed === true;
-                isBelowTarget = !entry.completed && (entry.feeling > 0 || entry.notes);
+                // Old format: boolean or simple value
+                isSuccessful = entry === true || (typeof entry === 'object' && entry.completed === true);
+                isBelowTarget = false;
               }
             }
 

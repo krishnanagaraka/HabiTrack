@@ -179,7 +179,7 @@ function App() {
     return saved ? JSON.parse(saved) : {};
   });
   const [currentTab, setCurrentTab] = useState(0);
-  const isDevelopment = import.meta.env.DEV;
+  const isDevelopment = false; // Disabled development mode for production
   const [bestStreakInfoOpen, setBestStreakInfoOpen] = useState(false);
   const [disciplineInfoOpen, setDisciplineInfoOpen] = useState(false);
   const [thisWeekInfoOpen, setThisWeekInfoOpen] = useState(false);
@@ -2580,17 +2580,17 @@ function App() {
       }}>
         <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary', width: '100%', pt: { xs: 1, sm: 0.5 }, backgroundImage: 'none' }}>
           <Toolbar sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
-            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+            <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box component="img" src="/icon.svg" alt="HabiTrack icon" sx={{ height: 36, mr: 1 }} />
+                <Box component="img" src="/assets/icon.png" alt="HabitForge icon" sx={{ height: 60, mr: 1.125, borderRadius: '12px' }} />
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                  HabiTrack
+                  HabitForge
                 </Typography>
               </Box>
 
             </Box>
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500, lineHeight: 1.2, pl: 0 }}>
-              Build discipline. Track Habits. Change your life.
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500, lineHeight: 1.2, pl: 0, fontSize: '1rem' }}>
+              Build discipline. Track habits. Transform your life.
             </Typography>
           </Toolbar>
         </AppBar>
@@ -3729,7 +3729,7 @@ function App() {
             borderBottom: '1px solid rgba(255,255,255,0.2)'
           }}>
             <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-              Welcome to HabiTrack!
+                              Welcome to HabitForge!
             </Typography>
             {/* Step indicator */}
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1 }}>

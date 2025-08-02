@@ -96,13 +96,13 @@ const Calendar = ({ completions = {}, habits = [], weeklyStats = [] }) => {
     <Box sx={{ width: '100%', maxWidth: 320, mx: 'auto', mt: 1, p: 0, background: tileBg, borderRadius: 2 }}>
       {/* Title with month/year and navigation */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1, minHeight: 48 }}>
-        <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor, opacity: 0.5, cursor: 'not-allowed' }} disabled>
+        <IconButton onClick={handlePrev} size="small" sx={{ mr: 0.5, p: 0.5, color: textColor }}>
           <ArrowBackIosNewIcon fontSize="inherit" />
         </IconButton>
         <Typography variant="subtitle2" sx={{ fontWeight: 800, flex: 1, textAlign: 'center', letterSpacing: 1, fontSize: '1.1rem', color: textColor }}>
           {new Date(current.year, current.month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
         </Typography>
-        <IconButton onClick={handleNext} size="small" sx={{ ml: 0.5, p: 0.5, color: textColor, opacity: 0.5, cursor: 'not-allowed' }} disabled>
+        <IconButton onClick={handleNext} size="small" sx={{ ml: 0.5, p: 0.5, color: textColor }}>
           <ArrowForwardIosIcon fontSize="inherit" />
         </IconButton>
       </Box>
